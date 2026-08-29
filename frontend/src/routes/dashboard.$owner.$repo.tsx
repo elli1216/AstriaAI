@@ -158,6 +158,24 @@ function RepoContent({ owner, repoName }: { owner: string; repoName: string }) {
         status: 'complete',
         report: JSON.stringify(reportData),
       })
+
+      // Push or update single markdown summary comment on GitHub PR
+      if (reportData.markdown_report) {
+        try {
+          await fetch(`${backendUrl}/github/pr-comment`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              owner,
+              repo: repoName,
+              pr_number: pr.prNumber,
+              markdown_report: reportData.markdown_report,
+            }),
+          })
+        } catch (commentErr) {
+          console.warn('Failed to push PR summary comment:', commentErr)
+        }
+      }
     } catch (err: any) {
       if (analysisId) {
         await updateAnalysisStatus({

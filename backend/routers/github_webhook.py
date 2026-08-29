@@ -19,6 +19,7 @@ from services.github_client import (
     list_installation_repos,
     list_app_installations,
     fetch_repo_prs,
+    upsert_pr_comment,
     post_pr_comment,
     verify_webhook_signature,
 )
@@ -32,26 +33,47 @@ CONVEX_URL = os.getenv("CONVEX_URL", "")
 # ── PR Comment endpoint ───────────────────────────────────────────────────────
 
 class PrCommentRequest(BaseModel):
-    installation_id: int
+    installation_id: int | None = None
     owner: str
     repo: str
     pr_number: int
     markdown_report: str
 
 
-@router.post("/pr-comment", status_code=204)
+@router.post("/pr-comment")
 async def post_pr_comment_endpoint(req: PrCommentRequest):
     """
-    Post a markdown report as a GitHub PR comment.
-    Called by the Convex `runAnalysis` action after analysis completes.
+    Post or update a single markdown report as a GitHub PR comment.
+    Edits existing Astria AI comment in-place to prevent comment spam.
     """
-    await post_pr_comment(
-        installation_id=req.installation_id,
+    inst_id = req.installation_id
+    if not inst_id:
+        try:
+            installations = await list_app_installations()
+            for inst in installations:
+                cur_id = inst.get("id")
+                if not cur_id:
+                    continue
+                repos = await list_installation_repos(cur_id)
+                if any(r["full_name"].lower() == f"{req.owner}/{req.repo}".lower() for r in repos):
+                    inst_id = cur_id
+                    break
+            if not inst_id and installations:
+                inst_id = installations[0].get("id")
+        except Exception as exc:
+            print(f"[pr-comment] Failed to auto-resolve installation ID: {exc}")
+
+    if not inst_id:
+        raise HTTPException(status_code=404, detail="No GitHub App installation found for this repository")
+
+    result = await upsert_pr_comment(
+        installation_id=inst_id,
         owner=req.owner,
         repo=req.repo,
         pr_number=req.pr_number,
         body=req.markdown_report,
     )
+    return {"success": True, "comment": result}
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────

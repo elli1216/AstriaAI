@@ -118,26 +118,87 @@ async def fetch_repo_contents(
         return resp.json()
 
 
+COMMENT_TAG = "<!-- ASTRIA_AI_ANALYSIS_SUMMARY -->"
+
+
+async def upsert_pr_comment(
+    installation_id: int,
+    owner: str,
+    repo: str,
+    pr_number: int,
+    body: str,
+) -> dict:
+    """
+    Post or update a single summary markdown comment on a GitHub PR.
+    If an existing Astria AI comment is found, edit (PATCH) it in-place.
+    Otherwise, create (POST) a new comment.
+    """
+    token = await get_installation_token(installation_id)
+
+    formatted_body = body
+    if COMMENT_TAG not in formatted_body:
+        formatted_body = f"{COMMENT_TAG}\n{body}"
+
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Accept": "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+    }
+
+    async with httpx.AsyncClient() as client:
+        # 1. Search for existing Astria AI comment on this PR
+        existing_comment_id = None
+        try:
+            resp = await client.get(
+                f"https://api.github.com/repos/{owner}/{repo}/issues/{pr_number}/comments",
+                headers=headers,
+                params={"per_page": 100},
+            )
+            if resp.is_success:
+                comments = resp.json()
+                for c in comments:
+                    if COMMENT_TAG in c.get("body", ""):
+                        existing_comment_id = c.get("id")
+                        break
+        except Exception as exc:
+            print(f"[github] Error searching existing PR comments: {exc}")
+
+        # 2. Update in-place if found, or post new comment
+        if existing_comment_id:
+            print(f"[github] Updating existing PR comment #{existing_comment_id} on {owner}/{repo}#{pr_number}")
+            patch_resp = await client.patch(
+                f"https://api.github.com/repos/{owner}/{repo}/issues/comments/{existing_comment_id}",
+                headers=headers,
+                json={"body": formatted_body},
+            )
+            patch_resp.raise_for_status()
+            return patch_resp.json()
+        else:
+            print(f"[github] Posting new PR comment on {owner}/{repo}#{pr_number}")
+            post_resp = await client.post(
+                f"https://api.github.com/repos/{owner}/{repo}/issues/{pr_number}/comments",
+                headers=headers,
+                json={"body": formatted_body},
+            )
+            post_resp.raise_for_status()
+            return post_resp.json()
+
+
 async def post_pr_comment(
     installation_id: int,
     owner: str,
     repo: str,
     pr_number: int,
     body: str,
-) -> None:
-    """Post a markdown comment to a pull request."""
-    token = await get_installation_token(installation_id)
-    async with httpx.AsyncClient() as client:
-        resp = await client.post(
-            f"https://api.github.com/repos/{owner}/{repo}/issues/{pr_number}/comments",
-            headers={
-                "Authorization": f"Bearer {token}",
-                "Accept": "application/vnd.github+json",
-                "X-GitHub-Api-Version": "2022-11-28",
-            },
-            json={"body": body},
-        )
-        resp.raise_for_status()
+) -> dict:
+    """Alias for upsert_pr_comment to prevent duplicate comments."""
+    return await upsert_pr_comment(
+        installation_id=installation_id,
+        owner=owner,
+        repo=repo,
+        pr_number=pr_number,
+        body=body,
+    )
 
 
 async def list_installation_repos(installation_id: int) -> list[dict]:
