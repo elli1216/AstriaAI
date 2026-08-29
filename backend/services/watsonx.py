@@ -98,7 +98,19 @@ def _repair_json_string(text: str) -> str:
     if start_idx != -1:
         text = text[start_idx:]
 
-    # 3. First attempt clean trailing commas
+    # 3. Sanitize Python-isms (e.g. "A" * 256, None, True, False)
+    def _repl_mul(m):
+        raw_str = m.group(1)[1:-1]
+        count = min(int(m.group(2)), 120)
+        return json.dumps(raw_str * count)
+
+    text = re.sub(r'("[^"]*"|\'[^\']*\')\s*\*\s*(\d+)', _repl_mul, text)
+    text = re.sub(r'("[^"]*"|\'[^\']*\')\.repeat\s*\(\s*(\d+)\s*\)', _repl_mul, text)
+    text = re.sub(r':\s*None\b', ': null', text)
+    text = re.sub(r':\s*True\b', ': true', text)
+    text = re.sub(r':\s*False\b', ': false', text)
+
+    # 4. First attempt clean trailing commas
     cleaned = re.sub(r",\s*(\]|\})", r"\1", text)
     try:
         json.loads(cleaned)
@@ -106,7 +118,7 @@ def _repair_json_string(text: str) -> str:
     except Exception:
         pass
 
-    # 4. If truncated mid-string or mid-object, slice up to the last valid '}' and close open containers
+    # 5. If truncated mid-string or mid-object, slice up to the last valid '}' and close open containers
     last_brace = text.rfind("}")
     if last_brace != -1:
         truncated = text[: last_brace + 1]

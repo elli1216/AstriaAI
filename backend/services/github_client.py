@@ -13,6 +13,7 @@ import os
 import httpx
 from functools import lru_cache
 from pathlib import Path
+from typing import Optional
 import jwt
 import time
 
@@ -23,13 +24,27 @@ def _get_app_jwt() -> str:
     Required to generate installation access tokens.
     """
     app_id = os.getenv("GITHUB_APP_ID", "")
-    key_path = os.getenv("GITHUB_APP_PRIVATE_KEY_PATH", "./github_app.pem")
+    key_path_str = os.getenv("GITHUB_APP_PRIVATE_KEY_PATH", "./github_app.pem")
 
-    try:
-        private_key = Path(key_path).read_text()
-    except FileNotFoundError:
+    candidate_paths = [
+        Path(key_path_str),
+        Path.cwd() / key_path_str.lstrip("./"),
+        Path(__file__).resolve().parent.parent / key_path_str.lstrip("./"),
+        Path(__file__).resolve().parent.parent / "github_app.pem",
+    ]
+
+    private_key: Optional[str] = None
+    for p in candidate_paths:
+        if p.exists() and p.is_file():
+            try:
+                private_key = p.read_text()
+                break
+            except Exception:
+                pass
+
+    if not private_key:
         raise RuntimeError(
-            f"GitHub App private key not found at {key_path}. "
+            f"GitHub App private key not found at {key_path_str}. Checked: {[str(p) for p in candidate_paths]}. "
             "Set GITHUB_APP_PRIVATE_KEY_PATH to the correct path."
         )
 
@@ -148,6 +163,44 @@ async def list_installation_repos(installation_id: int) -> list[dict]:
                 break
             page += 1
     return repos
+
+
+async def list_app_installations() -> list[dict]:
+    """List all installations for this GitHub App."""
+    app_jwt = _get_app_jwt()
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(
+            "https://api.github.com/app/installations",
+            headers={
+                "Authorization": f"Bearer {app_jwt}",
+                "Accept": "application/vnd.github+json",
+                "X-GitHub-Api-Version": "2022-11-28",
+            },
+        )
+        resp.raise_for_status()
+        return resp.json()
+
+
+async def fetch_repo_prs(
+    installation_id: int,
+    owner: str,
+    repo: str,
+    state: str = "open",
+) -> list[dict]:
+    """Fetch pull requests for a repository."""
+    token = await get_installation_token(installation_id)
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(
+            f"https://api.github.com/repos/{owner}/{repo}/pulls",
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Accept": "application/vnd.github+json",
+                "X-GitHub-Api-Version": "2022-11-28",
+            },
+            params={"state": state, "per_page": 20},
+        )
+        resp.raise_for_status()
+        return resp.json()
 
 
 def verify_webhook_signature(

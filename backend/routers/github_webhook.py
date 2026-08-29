@@ -17,6 +17,8 @@ from pydantic import BaseModel
 from services.github_client import (
     fetch_pr_diff,
     list_installation_repos,
+    list_app_installations,
+    fetch_repo_prs,
     post_pr_comment,
     verify_webhook_signature,
 )
@@ -264,3 +266,132 @@ async def _handle_pull_request(payload: dict) -> None:
                 )
         except Exception as exc:
             print(f"[webhook] Failed to auto-trigger analysis for PR #{pr_number}: {exc}")
+
+
+# ── On-demand direct sync endpoints ──────────────────────────────────────────
+
+class SyncRepoPrsRequest(BaseModel):
+    owner: str
+    repo: str
+
+
+@router.post("/sync-all")
+async def sync_all_installations_and_repos():
+    """
+    On-demand synchronization: Queries the GitHub API for all installations
+    and their accessible repositories, then writes them directly to Convex.
+    """
+    try:
+        installations = await list_app_installations()
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch GitHub App installations: {exc}")
+
+    synced_count = 0
+    for inst in installations:
+        inst_id = inst.get("id")
+        account = inst.get("account", {})
+        account_login = account.get("login", "")
+        account_type = account.get("type", "User")
+        if not inst_id:
+            continue
+
+        try:
+            repos = await list_installation_repos(inst_id)
+            await _convex_action(
+                "github:handleWebhookInstallation",
+                {
+                    "installationId": inst_id,
+                    "accountLogin": account_login,
+                    "accountType": account_type,
+                    "action": "created",
+                    "repositories": [
+                        {
+                            "id": r["id"],
+                            "name": r["name"],
+                            "fullName": r["full_name"],
+                            "private": r.get("private", False),
+                        }
+                        for r in repos
+                    ],
+                },
+            )
+            synced_count += len(repos)
+        except Exception as exc:
+            print(f"[sync-all] Failed to sync repos for installation {inst_id}: {exc}")
+
+    return {"success": True, "installations": len(installations), "synced_repos": synced_count}
+
+
+@router.post("/sync-repo-prs")
+async def sync_repo_pull_requests(req: SyncRepoPrsRequest):
+    """
+    On-demand PR sync: Queries GitHub API for all PRs on a repository,
+    fetches their unified diffs, and saves them directly to Convex.
+    """
+    try:
+        installations = await list_app_installations()
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to list installations: {exc}")
+
+    target_inst_id = None
+    for inst in installations:
+        inst_id = inst.get("id")
+        if not inst_id:
+            continue
+        try:
+            repos = await list_installation_repos(inst_id)
+            if any(r["full_name"].lower() == f"{req.owner}/{req.repo}".lower() for r in repos):
+                target_inst_id = inst_id
+                break
+        except Exception:
+            continue
+
+    if not target_inst_id and installations:
+        target_inst_id = installations[0].get("id")
+
+    if not target_inst_id:
+        raise HTTPException(status_code=404, detail="No GitHub App installation found for this repository")
+
+    try:
+        prs = await fetch_repo_prs(target_inst_id, req.owner, req.repo, state="all")
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch PRs from GitHub: {exc}")
+
+    synced_prs = 0
+    for pr in prs:
+        pr_number = pr.get("number")
+        if not pr_number:
+            continue
+
+        diff_content = None
+        try:
+            diff_content = await fetch_pr_diff(target_inst_id, req.owner, req.repo, pr_number)
+        except Exception as exc:
+            print(f"[sync-repo-prs] Could not fetch diff for PR #{pr_number}: {exc}")
+
+        pr_state = "open"
+        if pr.get("merged_at"):
+            pr_state = "merged"
+        elif pr.get("state") == "closed":
+            pr_state = "closed"
+
+        try:
+            await _convex_action(
+                "github:handleWebhookPullRequest",
+                {
+                    "repoFullName": f"{req.owner}/{req.repo}",
+                    "prNumber": pr_number,
+                    "title": pr.get("title", f"PR #{pr_number}"),
+                    "author": pr.get("user", {}).get("login", ""),
+                    "headSha": pr.get("head", {}).get("sha", ""),
+                    "baseSha": pr.get("base", {}).get("sha", ""),
+                    "htmlUrl": pr.get("html_url", ""),
+                    "state": pr_state,
+                    "diffContent": diff_content,
+                },
+            )
+            synced_prs += 1
+        except Exception as exc:
+            print(f"[sync-repo-prs] Failed to save PR #{pr_number} to Convex: {exc}")
+
+    return {"success": True, "synced_prs": synced_prs}

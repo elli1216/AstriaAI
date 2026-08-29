@@ -80,6 +80,28 @@ function RepoContent({ owner, repoName }: { owner: string; repoName: string }) {
   const createAnalysis = useMutation(api.analyses.createAnalysis)
   const updateAnalysisStatus = useMutation(api.analyses.updateAnalysisStatus)
   const [submitting, setSubmitting] = React.useState<string | null>(null)
+  const [isSyncing, setIsSyncing] = React.useState(false)
+
+  async function handleSyncPRs() {
+    setIsSyncing(true)
+    try {
+      const backendUrl =
+        (import.meta as any).env?.VITE_BACKEND_URL || 'http://localhost:8000'
+      const res = await fetch(`${backendUrl}/github/sync-repo-prs`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ owner, repo: repoName }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        throw new Error(data.detail || 'Failed to sync pull requests')
+      }
+    } catch (err: any) {
+      alert(`Sync failed: ${err.message}`)
+    } finally {
+      setIsSyncing(false)
+    }
+  }
 
   async function handleAnalyzePR(pr: {
     _id: string
@@ -123,25 +145,25 @@ function RepoContent({ owner, repoName }: { owner: string; repoName: string }) {
       })
 
       if (!response.ok) {
-        const errorText = await response.text()
-        throw new Error(`Backend error ${response.status}: ${errorText}`)
+        const errData = await response.json().catch(() => ({}))
+        throw new Error(
+          `Backend error ${response.status}: ${JSON.stringify(errData)}`,
+        )
       }
 
-      const report = await response.json()
+      const reportData = (await response.json()) as AnalysisReport
 
       await updateAnalysisStatus({
         id,
         status: 'complete',
-        report: JSON.stringify(report),
+        report: JSON.stringify(reportData),
       })
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Unknown error'
-      console.error('PR analysis failed:', err)
+    } catch (err: any) {
       if (analysisId) {
         await updateAnalysisStatus({
           id: analysisId as any,
           status: 'error',
-          error_message: msg,
+          error_message: err.message,
         })
       }
     } finally {
@@ -161,53 +183,76 @@ function RepoContent({ owner, repoName }: { owner: string; repoName: string }) {
 
   if (!repoDoc) {
     return (
-      <div className="gh-flash-warn text-sm" style={{ color: 'var(--gh-orange-text)' }}>
-        Repository <code className="gh-code">{fullName}</code> not found in Convex.{' '}
-        <Link to="/dashboard" style={{ color: 'var(--gh-accent)' }}>
-          Back to dashboard
-        </Link>
+      <div className="gh-card p-12 text-center text-sm" style={{ color: 'var(--gh-text-muted)' }}>
+        <p className="text-base font-semibold text-white mb-1">Repository Not Found</p>
+        <p className="mb-4">
+          This repository has not been registered with Astria AI yet.
+        </p>
+        <div className="flex justify-center gap-3">
+          <button
+            onClick={handleSyncPRs}
+            disabled={isSyncing}
+            className="gh-btn text-xs py-1 px-3"
+          >
+            {isSyncing ? '↻ Syncing…' : '↻ Sync from GitHub'}
+          </button>
+          <Link to="/dashboard" className="gh-btn text-xs py-1 px-3">
+            ← Back to dashboard
+          </Link>
+        </div>
       </div>
     )
   }
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Repo info bar */}
-      <div
-        className="gh-card px-4 py-3 flex items-center justify-between"
-      >
+      {/* Repo meta bar */}
+      <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="var(--gh-text-muted)">
-            <path d="M2 2.5A2.5 2.5 0 0 1 4.5 0h8.75a.75.75 0 0 1 .75.75v12.5a.75.75 0 0 1-.75.75h-2.5a.75.75 0 0 1 0-1.5h1.75v-2h-8a1 1 0 0 0-.714 1.7.75.75 0 1 1-1.072 1.05A2.495 2.495 0 0 1 2 11.5Zm10.5-1h-8a1 1 0 0 0-1 1v6.708A2.486 2.486 0 0 1 4.5 9h8Z" />
-          </svg>
-          <span className="font-semibold text-sm" style={{ color: 'var(--gh-text)' }}>
-            {fullName}
+          <span
+            className="w-3 h-3 rounded-full"
+            style={{
+              backgroundColor: repoDoc.private ? 'var(--gh-orange)' : 'var(--gh-green)',
+            }}
+          />
+          <span className="text-sm font-semibold" style={{ color: 'var(--gh-text)' }}>
+            {repoDoc.fullName}
           </span>
-          {repoDoc.private && (
-            <span
-              className="gh-label"
-              style={{
-                background: 'var(--gh-surface-2)',
-                color: 'var(--gh-text-muted)',
-                border: '1px solid var(--gh-border)',
-                fontSize: 11,
-              }}
-            >
-              Private
-            </span>
-          )}
+          <span className="gh-label text-xs">
+            {repoDoc.private ? 'Private' : 'Public'}
+          </span>
+          <span
+            className="text-xs font-mono"
+            style={{ color: 'var(--gh-text-muted)' }}
+          >
+            default: {repoDoc.defaultBranch}
+          </span>
         </div>
-        <a
-          href={repoDoc.htmlUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="gh-btn text-xs"
-        >
-          <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
-            <path d="M3.75 2h3.5a.75.75 0 0 1 0 1.5h-3.5a.25.25 0 0 0-.25.25v8.5c0 .138.112.25.25.25h8.5a.25.25 0 0 0 .25-.25v-3.5a.75.75 0 0 1 1.5 0v3.5A1.75 1.75 0 0 1 12.25 14h-8.5A1.75 1.75 0 0 1 2 12.25v-8.5C2 2.784 2.784 2 3.75 2Zm6.854-1h4.146a.25.25 0 0 1 .25.25v4.146a.25.25 0 0 1-.427.177L13.03 4.03 9.28 7.78a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042l3.75-3.75-1.543-1.543A.25.25 0 0 1 10.604 1Z" />
-          </svg>
-          View on GitHub
-        </a>
+
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleSyncPRs}
+            disabled={isSyncing}
+            type="button"
+            className="gh-btn text-xs py-1 px-2.5 flex items-center gap-1.5"
+            title="Fetch all open PRs and diffs directly from GitHub"
+          >
+            <span className={isSyncing ? 'animate-spin inline-block' : ''}>↻</span>
+            <span>{isSyncing ? 'Syncing PRs…' : 'Sync Pull Requests'}</span>
+          </button>
+
+          <a
+            href={repoDoc.htmlUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="gh-btn text-xs"
+          >
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
+              <path d="M3.75 2h3.5a.75.75 0 0 1 0 1.5h-3.5a.25.25 0 0 0-.25.25v8.5c0 .138.112.25.25.25h8.5a.25.25 0 0 0 .25-.25v-3.5a.75.75 0 0 1 1.5 0v3.5A1.75 1.75 0 0 1 12.25 14h-8.5A1.75 1.75 0 0 1 2 12.25v-8.5C2 2.784 2.784 2 3.75 2Zm6.854-1h4.146a.25.25 0 0 1 .25.25v4.146a.25.25 0 0 1-.427.177L13.03 4.03 9.28 7.78a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042l3.75-3.75-1.543-1.543A.25.25 0 0 1 10.604 1Z" />
+            </svg>
+            View on GitHub
+          </a>
+        </div>
       </div>
 
       {/* PR list */}
@@ -268,8 +313,17 @@ function RepoContent({ owner, repoName }: { owner: string; repoName: string }) {
             >
               <path d="M1.5 3.25a2.25 2.25 0 1 1 3 2.122v5.256a2.251 2.251 0 1 1-1.5 0V5.372A2.25 2.25 0 0 1 1.5 3.25Z" />
             </svg>
-            No pull requests tracked yet. Open a PR on GitHub to trigger
-            automatic analysis.
+            <p className="font-semibold text-white mb-1">No pull requests tracked yet</p>
+            <p className="mb-4 text-xs">
+              Open a PR on GitHub or click below to sync all open PRs directly into Convex.
+            </p>
+            <button
+              onClick={handleSyncPRs}
+              disabled={isSyncing}
+              className="gh-btn text-xs py-1.5 px-3"
+            >
+              {isSyncing ? '↻ Fetching PRs from GitHub…' : '↻ Sync Pull Requests Now'}
+            </button>
           </div>
         ) : (
           <div

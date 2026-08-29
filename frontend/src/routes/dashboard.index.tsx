@@ -68,6 +68,26 @@ function DashboardContent() {
 
   const [searchQuery, setSearchQuery] = React.useState('')
   const [riskFilter, setRiskFilter] = React.useState<'all' | 'high_critical' | 'low_clean'>('all')
+  const [isSyncingAll, setIsSyncingAll] = React.useState(false)
+
+  async function handleSyncAllRepos() {
+    setIsSyncingAll(true)
+    try {
+      const backendUrl =
+        (import.meta as any).env?.VITE_BACKEND_URL || 'http://localhost:8000'
+      const res = await fetch(`${backendUrl}/github/sync-all`, {
+        method: 'POST',
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        throw new Error(data.detail || 'Failed to sync repositories')
+      }
+    } catch (err: any) {
+      alert(`Sync failed: ${err.message}`)
+    } finally {
+      setIsSyncingAll(false)
+    }
+  }
 
   // Once we know the user's GitHub login, claim any unclaimed installations
   React.useEffect(() => {
@@ -250,8 +270,8 @@ function DashboardContent() {
       </div>
 
       {/* ── Repositories section ─────────────────────────────────────── */}
-      <section>
-        <div className="flex items-center justify-between mb-3">
+      <section className="w-full">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 mb-3">
           <div className="flex items-center gap-2">
             <h2
               className="font-semibold text-base"
@@ -267,27 +287,41 @@ function DashboardContent() {
                 borderColor: 'var(--gh-border)',
               }}
             >
-              {installations.length} Connected
+              {installations.length} {installations.length === 1 ? 'Account' : 'Accounts'}
             </span>
           </div>
-          <a
-            href={GITHUB_APP_INSTALL_URL}
-            className="text-xs font-medium hover:underline flex items-center gap-1"
-            style={{ color: 'var(--gh-accent)' }}
-          >
-            <span>Configure GitHub App</span>
-            <span>→</span>
-          </a>
+
+          <div className="flex items-center gap-2.5">
+            <button
+              onClick={handleSyncAllRepos}
+              disabled={isSyncingAll}
+              type="button"
+              className="gh-btn text-xs py-1 px-2.5 flex items-center gap-1.5"
+              title="Sync all connected installations and repositories from GitHub"
+            >
+              <span className={isSyncingAll ? 'animate-spin inline-block' : ''}>↻</span>
+              <span>{isSyncingAll ? 'Syncing Repos…' : 'Sync All Repositories'}</span>
+            </button>
+
+            <a
+              href={GITHUB_APP_INSTALL_URL}
+              className="text-xs font-medium hover:underline flex items-center gap-1"
+              style={{ color: 'var(--gh-accent)' }}
+            >
+              <span>Configure GitHub App</span>
+              <span>→</span>
+            </a>
+          </div>
         </div>
 
         {installations.length === 0 ? (
           <InstallCTA />
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          <div className="flex flex-col gap-4 w-full">
             {installations.map((inst) => (
               <React.Suspense
                 key={inst._id}
-                fallback={<div className="gh-card p-4 h-28 gh-skeleton" />}
+                fallback={<div className="gh-card p-4 h-28 gh-skeleton w-full" />}
               >
                 <InstallationCard installation={inst} />
               </React.Suspense>
@@ -529,110 +563,240 @@ function InstallationCard({
     }),
   )
 
+  const [repoSearch, setRepoSearch] = React.useState('')
+  const [currentPage, setCurrentPage] = React.useState(1)
+  const pageSize = 5
+
+  const filteredRepos = React.useMemo(() => {
+    if (!repoSearch.trim()) return repos
+    const q = repoSearch.toLowerCase().trim()
+    return repos.filter(
+      (r) =>
+        r.name.toLowerCase().includes(q) ||
+        r.fullName.toLowerCase().includes(q) ||
+        r.owner.toLowerCase().includes(q),
+    )
+  }, [repos, repoSearch])
+
+  const totalPages = Math.max(1, Math.ceil(filteredRepos.length / pageSize))
+
+  React.useEffect(() => {
+    setCurrentPage(1)
+  }, [repoSearch])
+
+  const paginatedRepos = React.useMemo(() => {
+    const start = (currentPage - 1) * pageSize
+    return filteredRepos.slice(start, start + pageSize)
+  }, [filteredRepos, currentPage, pageSize])
+
+  const startIndex = filteredRepos.length === 0 ? 0 : (currentPage - 1) * pageSize + 1
+  const endIndex = Math.min(currentPage * pageSize, filteredRepos.length)
+
   return (
-    <div className="gh-card overflow-hidden">
+    <div className="gh-card overflow-hidden w-full">
       {/* Card header */}
       <div
-        className="flex items-center gap-2 px-4 py-3"
+        className="flex flex-wrap items-center justify-between gap-2.5 px-4 py-3 bg-[var(--gh-surface-2)]"
         style={{ borderBottom: '1px solid var(--gh-border)' }}
       >
-        <svg
-          width="16"
-          height="16"
-          viewBox="0 0 16 16"
-          fill="var(--gh-text-muted)"
-        >
-          {installation.accountType === 'Organization' ? (
-            <path d="M1.5 14.25c0 .138.112.25.25.25H4v-1.25a.75.75 0 0 1 .75-.75h2.5a.75.75 0 0 1 .75.75v1.25h2.25a.25.25 0 0 0 .25-.25V1.75a.25.25 0 0 0-.25-.25h-8.5a.25.25 0 0 0-.25.25ZM1.75 0h8.5c.966 0 1.75.784 1.75 1.75v12.5a1.75 1.75 0 0 1-1.75 1.75h-8.5A1.75 1.75 0 0 1 0 14.25V1.75C0 .784.784 0 1.75 0ZM3.5 6.25a.75.75 0 0 1 .75-.75h.5a.75.75 0 0 1 0 1.5h-.5a.75.75 0 0 1-.75-.75Zm.75 2.25h.5a.75.75 0 0 1 0 1.5h-.5a.75.75 0 0 1 0-1.5ZM3.5 3.75A.75.75 0 0 1 4.25 3h.5a.75.75 0 0 1 0 1.5h-.5a.75.75 0 0 1-.75-.75ZM7 6.25A.75.75 0 0 1 7.75 5.5h.5a.75.75 0 0 1 0 1.5h-.5A.75.75 0 0 1 7 6.25ZM7.75 8h.5a.75.75 0 0 1 0 1.5h-.5a.75.75 0 0 1 0-1.5ZM7 3.75A.75.75 0 0 1 7.75 3h.5a.75.75 0 0 1 0 1.5h-.5A.75.75 0 0 1 7 3.75Z" />
-          ) : (
-            <path d="M10.561 8.073a6.005 6.005 0 0 1 3.432 5.142.75.75 0 1 1-1.498.07 4.5 4.5 0 0 0-8.99 0 .75.75 0 0 1-1.498-.07 6.004 6.004 0 0 1 3.431-5.142 3.999 3.999 0 1 1 5.123 0ZM10.5 5a2.5 2.5 0 1 0-5 0 2.5 2.5 0 0 0 5 0Z" />
-          )}
-        </svg>
-        <span
-          className="text-sm font-semibold"
-          style={{ color: 'var(--gh-text)' }}
-        >
-          {installation.accountLogin}
-        </span>
-        {installation.suspended && (
+        <div className="flex items-center gap-2">
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 16 16"
+            fill="var(--gh-text-muted)"
+          >
+            {installation.accountType === 'Organization' ? (
+              <path d="M1.5 14.25c0 .138.112.25.25.25H4v-1.25a.75.75 0 0 1 .75-.75h2.5a.75.75 0 0 1 .75.75v1.25h2.25a.25.25 0 0 0 .25-.25V1.75a.25.25 0 0 0-.25-.25h-8.5a.25.25 0 0 0-.25.25ZM1.75 0h8.5c.966 0 1.75.784 1.75 1.75v12.5a1.75 1.75 0 0 1-1.75 1.75h-8.5A1.75 1.75 0 0 1 0 14.25V1.75C0 .784.784 0 1.75 0ZM3.5 6.25a.75.75 0 0 1 .75-.75h.5a.75.75 0 0 1 0 1.5h-.5a.75.75 0 0 1-.75-.75Zm.75 2.25h.5a.75.75 0 0 1 0 1.5h-.5a.75.75 0 0 1 0-1.5ZM3.5 3.75A.75.75 0 0 1 4.25 3h.5a.75.75 0 0 1 0 1.5h-.5a.75.75 0 0 1-.75-.75ZM7 6.25A.75.75 0 0 1 7.75 5.5h.5a.75.75 0 0 1 0 1.5h-.5A.75.75 0 0 1 7 6.25ZM7.75 8h.5a.75.75 0 0 1 0 1.5h-.5a.75.75 0 0 1 0-1.5ZM7 3.75A.75.75 0 0 1 7.75 3h.5a.75.75 0 0 1 0 1.5h-.5A.75.75 0 0 1 7 3.75Z" />
+            ) : (
+              <path d="M10.561 8.073a6.005 6.005 0 0 1 3.432 5.142.75.75 0 1 1-1.498.07 4.5 4.5 0 0 0-8.99 0 .75.75 0 0 1-1.498-.07 6.004 6.004 0 0 1 3.431-5.142 3.999 3.999 0 1 1 5.123 0ZM10.5 5a2.5 2.5 0 1 0-5 0 2.5 2.5 0 0 0 5 0Z" />
+            )}
+          </svg>
           <span
-            className="gh-label ml-auto"
+            className="text-sm font-semibold"
+            style={{ color: 'var(--gh-text)' }}
+          >
+            {installation.accountLogin}
+          </span>
+          <span
+            className="gh-label text-[11px]"
             style={{
-              background: 'var(--gh-orange-muted)',
-              color: 'var(--gh-orange-text)',
-              borderColor: 'rgba(210,153,34,.4)',
+              backgroundColor: 'var(--gh-surface-1)',
+              color: 'var(--gh-text-muted)',
+              borderColor: 'var(--gh-border)',
             }}
           >
-            Suspended
+            {installation.accountType}
           </span>
-        )}
+        </div>
+
+        <div className="flex items-center gap-2.5">
+          {repos.length > 3 && (
+            <div className="relative">
+              <input
+                type="text"
+                value={repoSearch}
+                onChange={(e) => setRepoSearch(e.target.value)}
+                placeholder="Find a repository..."
+                className="gh-input text-xs py-1 px-2.5 w-36 sm:w-48"
+              />
+              {repoSearch && (
+                <button
+                  onClick={() => setRepoSearch('')}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-400 hover:text-white"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+          )}
+
+          <span
+            className="gh-label text-xs"
+            style={{
+              backgroundColor: 'var(--gh-surface-1)',
+              color: 'var(--gh-text-muted)',
+              borderColor: 'var(--gh-border)',
+            }}
+          >
+            {repos.length} {repos.length === 1 ? 'Repository' : 'Repositories'}
+          </span>
+
+          {installation.suspended && (
+            <span
+              className="gh-label text-xs"
+              style={{
+                background: 'var(--gh-orange-muted)',
+                color: 'var(--gh-orange-text)',
+                borderColor: 'rgba(210,153,34,.4)',
+              }}
+            >
+              Suspended
+            </span>
+          )}
+        </div>
       </div>
 
-      {/* Repo list */}
-      <div className="flex flex-col">
-        {repos.slice(0, 5).map((repo) => (
+      {/* Repo list table */}
+      <div className="flex flex-col divide-y divide-[var(--gh-border)]">
+        {paginatedRepos.map((repo) => (
           <Link
             key={repo._id}
             to="/dashboard/$owner/$repo"
             params={{ owner: repo.owner, repo: repo.name }}
-            className="flex items-center gap-2 px-4 py-2 gh-row"
+            className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 py-3.5 gh-row group transition-colors"
             style={{ textDecoration: 'none' }}
           >
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 16 16"
-              fill={
-                repo.private ? 'var(--gh-text-muted)' : 'var(--gh-text-muted)'
-              }
-            >
-              {repo.private ? (
-                <path d="M4 4a4 4 0 0 1 8 0v2h.25c.966 0 1.75.784 1.75 1.75v5.5A1.75 1.75 0 0 1 12.25 15h-8.5A1.75 1.75 0 0 1 2 13.25v-5.5C2 6.784 2.784 6 3.75 6H4Zm8.25 3.5h-8.5a.25.25 0 0 0-.25.25v5.5c0 .138.112.25.25.25h8.5a.25.25 0 0 0 .25-.25v-5.5a.25.25 0 0 0-.25-.25ZM10.5 6V4a2.5 2.5 0 0 0-5 0v2Z" />
-              ) : (
-                <path d="M2 2.5A2.5 2.5 0 0 1 4.5 0h8.75a.75.75 0 0 1 .75.75v12.5a.75.75 0 0 1-.75.75h-2.5a.75.75 0 0 1 0-1.5h1.75v-2h-8a1 1 0 0 0-.714 1.7.75.75 0 1 1-1.072 1.05A2.495 2.495 0 0 1 2 11.5Zm10.5-1h-8a1 1 0 0 0-1 1v6.708A2.486 2.486 0 0 1 4.5 9h8Z" />
-              )}
-            </svg>
-            <span
-              className="text-xs font-mono"
-              style={{ color: 'var(--gh-accent)' }}
-            >
-              {repo.name}
-            </span>
-            {repo.private && (
+            {/* Left: icon + name + badges */}
+            <div className="flex items-center gap-2.5 min-w-0">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 16 16"
+                className="shrink-0"
+                fill="var(--gh-text-muted)"
+              >
+                {repo.private ? (
+                  <path d="M4 4a4 4 0 0 1 8 0v2h.25c.966 0 1.75.784 1.75 1.75v5.5A1.75 1.75 0 0 1 12.25 15h-8.5A1.75 1.75 0 0 1 2 13.25v-5.5C2 6.784 2.784 6 3.75 6H4Zm8.25 3.5h-8.5a.25.25 0 0 0-.25.25v5.5c0 .138.112.25.25.25h8.5a.25.25 0 0 0 .25-.25v-5.5a.25.25 0 0 0-.25-.25ZM10.5 6V4a2.5 2.5 0 0 0-5 0v2Z" />
+                ) : (
+                  <path d="M2 2.5A2.5 2.5 0 0 1 4.5 0h8.75a.75.75 0 0 1 .75.75v12.5a.75.75 0 0 1-.75.75h-2.5a.75.75 0 0 1 0-1.5h1.75v-2h-8a1 1 0 0 0-.714 1.7.75.75 0 1 1-1.072 1.05A2.495 2.495 0 0 1 2 11.5Zm10.5-1h-8a1 1 0 0 0-1 1v6.708A2.486 2.486 0 0 1 4.5 9h8Z" />
+                )}
+              </svg>
+
               <span
-                className="gh-label ml-auto"
+                className="text-sm font-semibold font-mono truncate group-hover:underline"
+                style={{ color: 'var(--gh-accent)' }}
+              >
+                {repo.fullName}
+              </span>
+
+              <span
+                className="gh-label text-[11px] shrink-0"
                 style={{
-                  fontSize: 10,
                   background: 'var(--gh-surface-2)',
                   color: 'var(--gh-text-muted)',
                   border: '1px solid var(--gh-border)',
                 }}
               >
-                Private
+                {repo.private ? 'Private' : 'Public'}
               </span>
-            )}
+
+              <span
+                className="gh-label text-[10px] font-mono shrink-0 hidden sm:inline-flex"
+                style={{
+                  background: 'transparent',
+                  color: 'var(--gh-text-subtle)',
+                  border: '1px solid var(--gh-border)',
+                }}
+              >
+                default: {repo.defaultBranch}
+              </span>
+            </div>
+
+            {/* Right: action link */}
+            <div className="flex items-center gap-1.5 text-xs text-[var(--gh-accent)] shrink-0 self-end sm:self-auto font-medium">
+              <span>View PRs & Blast Radius</span>
+              <span className="group-hover:translate-x-1 transition-transform">→</span>
+            </div>
           </Link>
         ))}
-        {repos.length === 0 && (
-          <p
-            className="px-4 py-3 text-xs"
+
+        {filteredRepos.length === 0 && (
+          <div
+            className="px-4 py-8 text-center text-xs"
             style={{ color: 'var(--gh-text-muted)' }}
           >
-            No repositories synced yet.
-          </p>
-        )}
-        {repos.length > 5 && (
-          <p
-            className="px-4 py-2 text-xs"
-            style={{
-              color: 'var(--gh-text-muted)',
-              borderTop: '1px solid var(--gh-border)',
-            }}
-          >
-            + {repos.length - 5} more repositories
-          </p>
+            {repoSearch ? (
+              <>
+                <p className="mb-1 font-medium text-white">No matching repositories found</p>
+                <p className="text-gray-400">No repositories match &quot;{repoSearch}&quot;.</p>
+              </>
+            ) : (
+              <>
+                <p className="mb-1 font-medium text-white">No repositories synced yet</p>
+                <p className="text-gray-400">Click &quot;Sync All Repositories&quot; above to populate repositories from this account.</p>
+              </>
+            )}
+          </div>
         )}
       </div>
+
+      {/* Pagination controls footer */}
+      {filteredRepos.length > pageSize && (
+        <div
+          className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 py-2.5 bg-[var(--gh-surface-2)] text-xs"
+          style={{ borderTop: '1px solid var(--gh-border)' }}
+        >
+          <span style={{ color: 'var(--gh-text-muted)' }}>
+            Showing <strong style={{ color: 'var(--gh-text)' }}>{startIndex}</strong>–<strong style={{ color: 'var(--gh-text)' }}>{endIndex}</strong> of{' '}
+            <strong style={{ color: 'var(--gh-text)' }}>{filteredRepos.length}</strong> repositories
+          </span>
+
+          <div className="flex items-center gap-2 self-end sm:self-auto">
+            <button
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              disabled={currentPage <= 1}
+              type="button"
+              className="gh-btn text-xs py-1 px-2.5 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              ← Previous
+            </button>
+
+            <span className="font-mono text-xs px-2" style={{ color: 'var(--gh-text-muted)' }}>
+              {currentPage} / {totalPages}
+            </span>
+
+            <button
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              disabled={currentPage >= totalPages}
+              type="button"
+              className="gh-btn text-xs py-1 px-2.5 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Next →
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -640,12 +804,12 @@ function InstallationCard({
 function InstallCTA() {
   return (
     <div
-      className="gh-card p-8 flex flex-col items-center gap-4 text-center"
+      className="gh-card p-8 sm:p-12 flex flex-col items-center gap-4 text-center w-full"
       style={{ borderStyle: 'dashed' }}
     >
       <svg
-        width="32"
-        height="32"
+        width="36"
+        height="36"
         viewBox="0 0 16 16"
         fill="var(--gh-text-muted)"
       >
@@ -659,14 +823,14 @@ function InstallCTA() {
           Connect your repositories
         </p>
         <p
-          className="text-sm"
-          style={{ color: 'var(--gh-text-muted)', maxWidth: 360 }}
+          className="text-sm max-w-md mx-auto"
+          style={{ color: 'var(--gh-text-muted)' }}
         >
           Install the Astria AI GitHub App to automatically analyze pull
           requests as they open. No configuration required.
         </p>
       </div>
-      <a href={GITHUB_APP_INSTALL_URL} className="gh-btn-primary">
+      <a href={GITHUB_APP_INSTALL_URL} className="gh-btn-primary py-2 px-4 text-xs font-semibold">
         <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
           <path d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z" />
         </svg>

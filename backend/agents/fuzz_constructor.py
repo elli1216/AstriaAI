@@ -42,7 +42,8 @@ Respond ONLY with a valid JSON object (no markdown, no prose):
   ]
 }}
 
-Generate between 2 and 4 high-impact payloads. Keep payload dictionaries concise and focused.
+Generate between 2 and 4 high-impact payloads.
+Use ONLY valid static JSON literals (e.g. "AAAAAAAAAAAAAAAAAAAA", null, numbers, booleans). Do NOT write Python code like 'A' * 256.
 """.strip()
 
 
