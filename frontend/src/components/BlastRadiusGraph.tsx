@@ -166,19 +166,28 @@ export function BlastRadiusGraph({ blastRadius }: BlastRadiusGraphProps) {
   })
 
   return (
-    <div className="h-80 w-full rounded-xl overflow-hidden border border-white/10">
+    <div
+      className="h-96 w-full rounded-lg overflow-hidden border shadow-inner"
+      style={{
+        borderColor: 'var(--gh-border)',
+        backgroundColor: 'var(--gh-canvas)',
+      }}
+    >
       <ReactFlow
         nodes={nodes}
         edges={edges}
         fitView
-        fitViewOptions={{ padding: 0.2 }}
+        minZoom={0.4}
+        maxZoom={1.5}
+        fitViewOptions={{ padding: 0.25 }}
         proOptions={{ hideAttribution: true }}
       >
-        <Background color="#1e293b" gap={20} />
+        <Background color="var(--gh-border)" gap={24} size={1} />
         <Controls
           style={{
-            background: '#0f172a',
-            border: '1px solid #1e293b',
+            background: 'var(--gh-surface-2)',
+            border: '1px solid var(--gh-border)',
+            borderRadius: 6,
           }}
         />
       </ReactFlow>

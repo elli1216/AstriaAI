@@ -20,17 +20,17 @@ interface StatusStepperProps {
 export function StatusStepper({ status }: StatusStepperProps) {
   if (status === 'pending') {
     return (
-      <div className="flex items-center gap-2 text-gray-400">
-        <span className="w-2 h-2 rounded-full bg-gray-400 animate-pulse-slow" />
-        <span className="text-sm">Waiting to start…</span>
+      <div className="flex items-center gap-2 text-xs" style={{ color: 'var(--gh-text-muted)' }}>
+        <span className="w-2 h-2 rounded-full bg-[var(--gh-text-muted)] animate-pulse" />
+        <span>Waiting to start pipeline…</span>
       </div>
     )
   }
 
   if (status === 'error') {
     return (
-      <div className="flex items-center gap-2 text-red-400">
-        <span className="text-sm font-medium">⚠ Analysis failed</span>
+      <div className="flex items-center gap-2 text-xs font-semibold text-[var(--gh-red-text)]">
+        <span>⚠ Analysis failed</span>
       </div>
     )
   }
@@ -38,7 +38,7 @@ export function StatusStepper({ status }: StatusStepperProps) {
   const currentIdx = STEPS.indexOf(status)
 
   return (
-    <div className="flex items-center gap-1 flex-wrap">
+    <div className="flex items-center gap-1.5 flex-wrap">
       {STEPS.map((step, idx) => {
         const isDone = idx < currentIdx || status === 'complete'
         const isActive = idx === currentIdx && status !== 'complete'
@@ -46,24 +46,24 @@ export function StatusStepper({ status }: StatusStepperProps) {
           <React.Fragment key={step}>
             <div
               className={clsx(
-                'flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-all',
+                'flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium border transition-all',
                 isDone &&
-                  'text-emerald-400 bg-emerald-400/10 border-emerald-400/30',
+                  'bg-[var(--gh-green-muted)] text-[var(--gh-green-text)] border-[rgba(46,160,67,0.3)]',
                 isActive &&
-                  'text-blue-300 bg-blue-400/10 border-blue-400/40 animate-pulse',
+                  'bg-[var(--gh-accent-muted)] text-[var(--gh-accent)] border-[rgba(31,111,235,0.4)] animate-pulse',
                 !isDone &&
                   !isActive &&
-                  'text-gray-600 bg-gray-800/40 border-gray-700',
+                  'bg-[var(--gh-surface-2)] text-[var(--gh-text-muted)] border-[var(--gh-border)] opacity-60',
               )}
             >
-              {isDone ? '✓' : isActive ? '⟳' : '○'}
+              <span className="text-[10px]">{isDone ? '✓' : isActive ? '⟳' : '○'}</span>
               <span>{STATUS_LABELS[step]}</span>
             </div>
             {idx < STEPS.length - 1 && (
               <span
                 className={clsx(
-                  'text-xs',
-                  idx < currentIdx ? 'text-emerald-700' : 'text-gray-700',
+                  'text-[10px]',
+                  idx < currentIdx ? 'text-[var(--gh-green-text)] opacity-60' : 'text-[var(--gh-text-muted)] opacity-40',
                 )}
               >
                 →

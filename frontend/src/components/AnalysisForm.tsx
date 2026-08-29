@@ -1,6 +1,7 @@
 import * as React from 'react'
 import { useMutation } from 'convex/react'
 import { api } from '../../convex/_generated/api'
+import type { Id } from '../../convex/_generated/dataModel'
 import { useDashboardStore } from '~/store'
 
 export function AnalysisForm() {
@@ -23,7 +24,7 @@ export function AnalysisForm() {
     if (!diff.trim()) return
 
     setIsSubmitting(true)
-    let analysisId: any = null
+    let analysisId: Id<'analyses'> | null = null
     try {
       const id = await createAnalysis({
         pr_title: prTitle,

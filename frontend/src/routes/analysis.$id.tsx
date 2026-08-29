@@ -17,15 +17,27 @@ function AnalysisPage() {
   const { id } = Route.useParams()
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div
+      className="min-h-screen flex flex-col"
+      style={{ backgroundColor: 'var(--gh-canvas)' }}
+    >
       <NavBar />
-      <div className="max-w-5xl mx-auto px-6 py-8 w-full">
-        <div className="flex items-center gap-2 text-sm text-gray-400 mb-6">
-          <Link to="/dashboard" className="hover:text-white transition-colors">
+      <div className="max-w-5xl mx-auto px-4 py-6 w-full">
+        {/* Breadcrumbs */}
+        <div className="flex items-center gap-1.5 text-xs text-[var(--gh-text-muted)] mb-5">
+          <Link
+            to="/dashboard"
+            className="hover:underline hover:text-[var(--gh-text)] transition-colors"
+            style={{ color: 'var(--gh-accent)' }}
+          >
             Dashboard
           </Link>
           <span>/</span>
-          <span className="text-white font-mono text-xs">{id.slice(0, 12)}…</span>
+          <span>Analysis</span>
+          <span>/</span>
+          <span className="font-mono text-[var(--gh-text)] font-semibold">
+            {id.slice(0, 12)}…
+          </span>
         </div>
 
         <React.Suspense fallback={<LoadingSkeleton />}>
@@ -43,10 +55,11 @@ function AnalysisContent({ id }: { id: string }) {
 
   if (!analysis) {
     return (
-      <div className="glass rounded-2xl p-8 text-center text-sm text-gray-400">
-        Analysis not found or you don't have access.{' '}
-        <Link to="/dashboard" className="text-blue-400 hover:underline">
-          Back to dashboard
+      <div className="gh-card p-10 text-center text-sm text-[var(--gh-text-muted)]">
+        <p className="font-semibold text-base text-[var(--gh-text)] mb-2">Analysis Not Found</p>
+        <p className="mb-4 text-xs">The requested analysis report does not exist or has expired.</p>
+        <Link to="/dashboard" className="gh-btn text-xs">
+          ← Back to Dashboard
         </Link>
       </div>
     )
@@ -64,27 +77,56 @@ function AnalysisContent({ id }: { id: string }) {
   return (
     <div className="flex flex-col gap-6">
       {/* Header */}
-      <div className="glass rounded-2xl p-5">
-        <h1 className="text-lg font-bold text-white mb-1">{analysis.pr_title}</h1>
-        <p className="text-xs text-gray-500">
-          {analysis.source === 'github_pr' ? '🔗 GitHub PR' : '📝 Manual'} ·{' '}
-          {analysis.target_framework}
-        </p>
+      <div className="gh-card p-5 shadow-sm">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2 mb-1.5">
+              <span
+                className="gh-label text-xs"
+                style={{
+                  backgroundColor: 'var(--gh-surface-2)',
+                  borderColor: 'var(--gh-border)',
+                  color: 'var(--gh-accent)',
+                }}
+              >
+                {analysis.source === 'github_pr' ? '🐙 GitHub PR Webhook' : '✨ Manual Diff Studio'}
+              </span>
+              <span className="text-xs text-[var(--gh-text-muted)] font-mono">
+                {analysis.target_framework}
+              </span>
+            </div>
+            <h1 className="text-xl font-bold" style={{ color: 'var(--gh-text)' }}>
+              {analysis.pr_title}
+            </h1>
+          </div>
+
+          <Link to="/dashboard" className="gh-btn text-xs self-start sm:self-auto">
+            ← All Analyses
+          </Link>
+        </div>
       </div>
 
       {/* In-progress */}
       {analysis.status !== 'complete' && analysis.status !== 'error' && (
-        <div className="glass rounded-2xl p-5 flex flex-col gap-3">
-          <p className="text-sm font-semibold text-gray-300">Running analysis…</p>
+        <div className="gh-card p-6 flex flex-col gap-3 shadow-sm">
+          <div className="flex items-center gap-2">
+            <div className="w-2.5 h-2.5 rounded-full bg-[var(--gh-accent)] animate-ping" />
+            <p className="text-sm font-semibold" style={{ color: 'var(--gh-text)' }}>
+              Running IBM Granite Multi-Agent Pipeline…
+            </p>
+          </div>
           <StatusStepper status={analysis.status as AnalysisStatus} />
         </div>
       )}
 
       {/* Error */}
       {analysis.status === 'error' && (
-        <div className="glass rounded-2xl p-5 border border-red-500/20">
-          <p className="text-sm font-semibold text-red-400 mb-1">⚠ Analysis failed</p>
-          <p className="text-xs text-gray-400">
+        <div className="gh-card p-5 border-[var(--gh-red)] bg-[var(--gh-red-muted)] shadow-sm">
+          <p className="text-sm font-semibold text-[var(--gh-red-text)] mb-1 flex items-center gap-1.5">
+            <span>⚠</span>
+            <span>Analysis failed</span>
+          </p>
+          <p className="text-xs font-mono text-[var(--gh-text-muted)]">
             {analysis.error_message ?? 'Unknown error'}
           </p>
         </div>
@@ -98,10 +140,10 @@ function AnalysisContent({ id }: { id: string }) {
 
 function LoadingSkeleton() {
   return (
-    <div className="flex flex-col gap-4 animate-pulse">
-      <div className="h-20 rounded-2xl bg-white/5" />
-      <div className="h-40 rounded-2xl bg-white/5" />
-      <div className="h-64 rounded-2xl bg-white/5" />
+    <div className="flex flex-col gap-4">
+      <div className="h-20 gh-card gh-skeleton" />
+      <div className="h-40 gh-card gh-skeleton" />
+      <div className="h-64 gh-card gh-skeleton" />
     </div>
   )
 }

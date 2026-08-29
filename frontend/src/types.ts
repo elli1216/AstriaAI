@@ -50,6 +50,15 @@ export interface RemediationPatch {
   explanation: string
 }
 
+export interface ExecutionMetrics {
+  blast_radius_latency_ms?: number
+  fuzz_constructor_latency_ms?: number
+  test_synthesizer_latency_ms?: number
+  remediation_latency_ms?: number
+  total_pipeline_latency_ms?: number
+  model_name?: string
+}
+
 export interface AnalysisReport {
   pr_title: string
   blast_radius: BlastRadiusResult
@@ -57,6 +66,7 @@ export interface AnalysisReport {
   synthesized_test: SynthesizedTest
   test_execution?: TestExecutionResult
   remediation?: RemediationPatch
+  metrics?: ExecutionMetrics
   markdown_report: string
 }
 
