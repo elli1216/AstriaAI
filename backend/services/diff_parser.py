@@ -181,6 +181,61 @@ def trace_ast_callers(
     return callers
 
 
+def prune_openapi_spec(spec_text: Optional[str], symbol_names: list[str]) -> str:
+    """
+    Intelligently prune an OpenAPI specification to retain paths and schemas
+    relevant to the modified symbols and models.
+    """
+    if not spec_text or spec_text == "(not provided)":
+        return "(not provided)"
+    if len(spec_text) <= 3000:
+        return spec_text
+
+    if not symbol_names:
+        return spec_text[:3000]
+
+    relevant_blocks: list[str] = []
+    lines = spec_text.splitlines()
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+        if any(sym.lower() in line.lower() for sym in symbol_names if len(sym) >= 3):
+            start = max(0, i - 4)
+            end = min(len(lines), i + 16)
+            relevant_blocks.append("\n".join(lines[start:end]))
+            i = end
+        else:
+            i += 1
+
+    if relevant_blocks:
+        return "\n...\n".join(relevant_blocks[:8])
+    return spec_text[:3000]
+
+
+def prune_db_schema(schema_text: Optional[str], symbol_names: list[str]) -> str:
+    """
+    Prune a database / Prisma schema to models relevant to the changed symbols.
+    """
+    if not schema_text or schema_text == "(not provided)":
+        return "(not provided)"
+    if len(schema_text) <= 2000:
+        return schema_text
+
+    if not symbol_names:
+        return schema_text[:2000]
+
+    relevant_models: list[str] = []
+    # Match model/table blocks
+    blocks = re.split(r"\n(?=(?:model|table|CREATE TABLE)\s+)", schema_text, flags=re.IGNORECASE)
+    for block in blocks:
+        if any(sym.lower() in block.lower() for sym in symbol_names if len(sym) >= 3):
+            relevant_models.append(block.strip())
+
+    if relevant_models:
+        return "\n\n".join(relevant_models[:5])
+    return schema_text[:2000]
+
+
 def build_context_payload(
     diff_summary: DiffSummary,
     openapi_spec: Optional[str],
@@ -188,9 +243,14 @@ def build_context_payload(
     callers: dict[str, list[str]],
 ) -> dict:
     """
-    Assemble a structured context payload combining the diff, schema context,
+    Assemble a structured context payload combining the diff, pruned schema context,
     and downstream caller map. This is passed to the Granite agents.
     """
+    symbol_names = [s.name for s in diff_summary.changed_symbols]
+
+    pruned_openapi = prune_openapi_spec(openapi_spec, symbol_names)
+    pruned_schema = prune_db_schema(db_schema, symbol_names)
+
     return {
         "changed_files": diff_summary.changed_files,
         "added_lines": diff_summary.added_lines,
@@ -200,13 +260,13 @@ def build_context_payload(
                 "name": s.name,
                 "kind": s.kind,
                 "file": s.file,
-                "added_lines": s.added_lines[:20],  # cap for token budget
-                "removed_lines": s.removed_lines[:20],
+                "added_lines": s.added_lines[:25],
+                "removed_lines": s.removed_lines[:25],
             }
             for s in diff_summary.changed_symbols
         ],
         "downstream_callers": callers,
-        "openapi_spec": openapi_spec or "(not provided)",
-        "db_schema": db_schema or "(not provided)",
-        "raw_diff": diff_summary.raw_diff[:3000],  # cap for token budget
+        "openapi_spec": pruned_openapi,
+        "db_schema": pruned_schema,
+        "raw_diff": diff_summary.raw_diff[:4000],
     }

@@ -11,7 +11,7 @@ from models.analysis import (
     SynthesizedTest,
 )
 from services.watsonx import generate_text
-from services.config import GRANITE_CODE
+from services.config import GRANITE_CODE, TARGET_APP_URL
 
 
 PYTEST_SYNTHESIZER_PROMPT = """
@@ -28,7 +28,8 @@ test file that validates the API routes listed below using the edge-case payload
 {summary}
 
 ## Instructions
-- Use `httpx` or `requests` for HTTP calls against `http://localhost:8001` (the demo target).
+- Target API base URL: `{target_url}`.
+- Use `httpx` or `requests` for HTTP calls against `{target_url}`.
 - Each fuzz payload must have at least one test function.
 - Assert correct HTTP status codes AND response body content.
 - Include a `test_happy_path_still_works()` function.
@@ -51,7 +52,8 @@ test file that validates the API routes listed below using the edge-case payload
 {summary}
 
 ## Instructions
-- Use the native `fetch` API to call `http://localhost:8001` (the demo target).
+- Target API base URL: `{target_url}`.
+- Use the native `fetch` API to call `{target_url}`.
 - Each fuzz payload must have at least one `it(...)` test.
 - Assert correct HTTP status codes AND response body content.
 - Include a `it('happy path still works', ...)` test.
@@ -63,6 +65,7 @@ def run_test_synthesizer_agent(
     blast_radius: BlastRadiusResult,
     fuzz_payloads: FuzzPayloadsResult,
     framework: str = "pytest",
+    target_url: str = TARGET_APP_URL,
 ) -> SynthesizedTest:
     """
     Invoke Granite Code to synthesize a regression test file.
@@ -79,16 +82,18 @@ def run_test_synthesizer_agent(
 
     if framework == "vitest":
         prompt = VITEST_SYNTHESIZER_PROMPT.format(
-            routes_json=routes_json[:1500],
-            payloads_json=payloads_json[:1500],
+            routes_json=routes_json[:2000],
+            payloads_json=payloads_json[:2000],
             summary=blast_radius.summary,
+            target_url=target_url,
         )
         filename = "pr_blast_regression.spec.ts"
     else:
         prompt = PYTEST_SYNTHESIZER_PROMPT.format(
-            routes_json=routes_json[:1500],
-            payloads_json=payloads_json[:1500],
+            routes_json=routes_json[:2000],
+            payloads_json=payloads_json[:2000],
             summary=blast_radius.summary,
+            target_url=target_url,
         )
         filename = "test_pr_blast_regression.py"
 

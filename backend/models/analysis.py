@@ -67,6 +67,15 @@ class AnalysisRequest(BaseModel):
     target_framework: str = "pytest"  # "pytest" | "vitest"
 
 
+class ExecutionMetrics(BaseModel):
+    blast_radius_latency_ms: Optional[float] = None
+    fuzz_constructor_latency_ms: Optional[float] = None
+    test_synthesizer_latency_ms: Optional[float] = None
+    remediation_latency_ms: Optional[float] = None
+    total_pipeline_latency_ms: Optional[float] = None
+    model_name: Optional[str] = None
+
+
 class AnalysisReport(BaseModel):
     pr_title: str
     blast_radius: BlastRadiusResult
@@ -74,4 +83,6 @@ class AnalysisReport(BaseModel):
     synthesized_test: SynthesizedTest
     test_execution: Optional[TestExecutionResult] = None
     remediation: Optional[RemediationPatch] = None
+    metrics: Optional[ExecutionMetrics] = None
     markdown_report: str
+

@@ -15,7 +15,8 @@ import concurrent.futures
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from models.analysis import AnalysisRequest, AnalysisReport
+import time
+from models.analysis import AnalysisRequest, AnalysisReport, ExecutionMetrics
 from services.diff_parser import parse_diff, trace_ast_callers, build_context_payload
 from agents.blast_radius import run_blast_radius_agent
 from agents.fuzz_constructor import run_fuzz_constructor_agent
@@ -23,7 +24,7 @@ from agents.test_synthesizer import run_test_synthesizer_agent
 from agents.remediation import run_remediation_agent
 from services.sandbox_executor import execute_synthesized_tests
 from services.report_formatter import format_markdown_report
-from services.config import FRONTEND_URL
+from services.config import FRONTEND_URL, GRANITE_CODE
 from routers.github_webhook import router as github_router
 
 
@@ -68,12 +69,14 @@ async def analyze_pr(request: AnalysisRequest) -> AnalysisReport:
     - Synthesize regression tests
     - Execute tests in sandbox
     - Run remediation if failures detected
-    - Return structured report with markdown
+    - Return structured report with markdown & execution metrics
     """
+    pipeline_start = time.perf_counter()
+
     # ── Step 1: Parse diff & build context ───────────────────────────────────
     diff_summary = parse_diff(request.diff)
     symbol_names = [s.name for s in diff_summary.changed_symbols]
-    callers = trace_ast_callers(symbol_names)  # no local codebase to scan, returns empty map
+    callers = trace_ast_callers(symbol_names)
 
     context = build_context_payload(
         diff_summary=diff_summary,
@@ -84,6 +87,7 @@ async def analyze_pr(request: AnalysisRequest) -> AnalysisReport:
 
     # ── Step 2 & 3: Parallel Granite agents ──────────────────────────────────
     loop = asyncio.get_running_loop()
+    parallel_start = time.perf_counter()
     with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
         blast_future = loop.run_in_executor(pool, run_blast_radius_agent, context)
         fuzz_future = loop.run_in_executor(pool, run_fuzz_constructor_agent, context)
@@ -92,8 +96,10 @@ async def analyze_pr(request: AnalysisRequest) -> AnalysisReport:
             blast_radius, fuzz_payloads = await asyncio.gather(blast_future, fuzz_future)
         except Exception as exc:
             raise HTTPException(status_code=502, detail=f"Agent pipeline error: {exc}")
+    parallel_duration_ms = (time.perf_counter() - parallel_start) * 1000
 
     # ── Step 4: Test synthesis ────────────────────────────────────────────────
+    synth_start = time.perf_counter()
     try:
         synthesized_test = await loop.run_in_executor(
             None,
@@ -104,10 +110,12 @@ async def analyze_pr(request: AnalysisRequest) -> AnalysisReport:
         )
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"Test synthesis error: {exc}")
+    synth_duration_ms = (time.perf_counter() - synth_start) * 1000
 
     # ── Step 5: Execute tests in sandbox ─────────────────────────────────────
     test_execution = None
     remediation = None
+    remediation_duration_ms = None
     try:
         test_execution = await loop.run_in_executor(
             None, execute_synthesized_tests, synthesized_test
@@ -115,12 +123,25 @@ async def analyze_pr(request: AnalysisRequest) -> AnalysisReport:
 
         # ── Step 6: Remediation if failures ──────────────────────────────────
         if not test_execution.success and test_execution.regressions_caught:
+            rem_start = time.perf_counter()
             remediation = await loop.run_in_executor(
                 None, run_remediation_agent, blast_radius, test_execution
             )
+            remediation_duration_ms = (time.perf_counter() - rem_start) * 1000
     except Exception:
         # Sandbox execution is best-effort; don't fail the entire request
         pass
+
+    total_duration_ms = (time.perf_counter() - pipeline_start) * 1000
+
+    metrics = ExecutionMetrics(
+        blast_radius_latency_ms=round(parallel_duration_ms, 1),
+        fuzz_constructor_latency_ms=round(parallel_duration_ms, 1),
+        test_synthesizer_latency_ms=round(synth_duration_ms, 1),
+        remediation_latency_ms=round(remediation_duration_ms, 1) if remediation_duration_ms else None,
+        total_pipeline_latency_ms=round(total_duration_ms, 1),
+        model_name=GRANITE_CODE,
+    )
 
     # ── Step 7: Format report ─────────────────────────────────────────────────
     report = AnalysisReport(
@@ -130,6 +151,7 @@ async def analyze_pr(request: AnalysisRequest) -> AnalysisReport:
         synthesized_test=synthesized_test,
         test_execution=test_execution,
         remediation=remediation,
+        metrics=metrics,
         markdown_report="",  # filled below
     )
     report.markdown_report = format_markdown_report(report)
