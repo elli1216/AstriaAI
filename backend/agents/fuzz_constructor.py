@@ -42,7 +42,7 @@ Respond ONLY with a valid JSON object (no markdown, no prose):
   ]
 }}
 
-Generate between 3 and 8 payloads. Focus on the most realistic regression scenarios.
+Generate between 2 and 4 high-impact payloads. Keep payload dictionaries concise and focused.
 """.strip()
 
 
@@ -58,7 +58,22 @@ def run_fuzz_constructor_agent(context: dict) -> FuzzPayloadsResult:
         raw_diff=str(context.get("raw_diff", ""))[:1500],
     )
 
-    data = generate_json(prompt, model_id=GRANITE_INSTRUCT)
+    try:
+        data = generate_json(prompt, model_id=GRANITE_INSTRUCT)
+        raw_payloads = data.get("payloads", [])
+        payloads = [FuzzPayload(**p) for p in raw_payloads if isinstance(p, dict)]
+    except Exception:
+        payloads = []
 
-    payloads = [FuzzPayload(**p) for p in data.get("payloads", [])]
+    if not payloads:
+        # Fallback default payload
+        payloads = [
+            FuzzPayload(
+                name="missing_required_fields",
+                description="Omit newly required fields to verify contract enforcement",
+                payload={"id": 1},
+                expected_failure="Validation error / HTTP 422 or 400",
+            )
+        ]
+
     return FuzzPayloadsResult(payloads=payloads)

@@ -238,14 +238,16 @@ def prune_db_schema(schema_text: Optional[str], symbol_names: list[str]) -> str:
 
 def build_context_payload(
     diff_summary: DiffSummary,
-    openapi_spec: Optional[str],
-    db_schema: Optional[str],
-    callers: dict[str, list[str]],
+    openapi_spec: Optional[str] = None,
+    db_schema: Optional[str] = None,
+    callers: Optional[dict[str, list[str]]] = None,
 ) -> dict:
     """
     Assemble a structured context payload combining the diff, pruned schema context,
     and downstream caller map. This is passed to the Granite agents.
     """
+    if callers is None:
+        callers = {}
     symbol_names = [s.name for s in diff_summary.changed_symbols]
 
     pruned_openapi = prune_openapi_spec(openapi_spec, symbol_names)

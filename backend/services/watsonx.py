@@ -29,7 +29,7 @@ def _get_credentials() -> dict:
 
 
 @functools.lru_cache(maxsize=16)
-def get_model(model_id: str, max_new_tokens: int = 2048) -> ModelInference:
+def get_model(model_id: str, max_new_tokens: int = 2500) -> ModelInference:
     """
     Return a cached ModelInference instance for the given model and token limit.
     Avoids re-authenticating / re-instantiating the client on every call.
@@ -39,7 +39,7 @@ def get_model(model_id: str, max_new_tokens: int = 2048) -> ModelInference:
         GenParams.MAX_NEW_TOKENS: max_new_tokens,
         GenParams.MIN_NEW_TOKENS: 1,
         GenParams.TEMPERATURE: 0.0,
-        GenParams.STOP_SEQUENCES: ["```\n\n", "</output>"],
+        GenParams.STOP_SEQUENCES: ["</output>"],
     }
     return ModelInference(
         model_id=model_id,
@@ -52,7 +52,7 @@ def get_model(model_id: str, max_new_tokens: int = 2048) -> ModelInference:
 def generate_text(
     prompt: str,
     model_id: str = GRANITE_INSTRUCT,
-    max_new_tokens: int = 2048,
+    max_new_tokens: int = 2500,
     retries: int = 3,
     delay: float = 1.5,
 ) -> str:
@@ -75,10 +75,11 @@ def generate_text(
 
 def _repair_json_string(text: str) -> str:
     """
-    Apply heuristic sanitization to fix common LLM JSON syntax artifacts:
+    Apply robust heuristic sanitization to fix common LLM JSON syntax artifacts:
     - Remove markdown code fences
+    - Extract from the first opening brace { or [
+    - Auto-heal truncated JSON arrays/objects by closing unclosed brackets/braces
     - Remove trailing commas before closing braces/brackets
-    - Extract the outermost JSON object { ... } or array [ ... ]
     """
     # 1. Extract markdown code block if present
     if "```json" in text:
@@ -88,21 +89,51 @@ def _repair_json_string(text: str) -> str:
 
     text = text.strip()
 
-    # 2. Extract outermost matching JSON brackets
-    match = re.search(r"(\{[\s\S]*\}|\[[\s\S]*\])", text)
-    if match:
-        text = match.group(1)
+    # 2. Find starting { or [
+    start_idx = -1
+    for i, ch in enumerate(text):
+        if ch in ("{", "["):
+            start_idx = i
+            break
+    if start_idx != -1:
+        text = text[start_idx:]
 
-    # 3. Strip trailing commas before closing braces or brackets (e.g. [1, 2,] or {"a": 1,})
-    text = re.sub(r",\s*(\]|\})", r"\1", text)
+    # 3. First attempt clean trailing commas
+    cleaned = re.sub(r",\s*(\]|\})", r"\1", text)
+    try:
+        json.loads(cleaned)
+        return cleaned
+    except Exception:
+        pass
 
-    return text.strip()
+    # 4. If truncated mid-string or mid-object, slice up to the last valid '}' and close open containers
+    last_brace = text.rfind("}")
+    if last_brace != -1:
+        truncated = text[: last_brace + 1]
+        open_braces = truncated.count("{") - truncated.count("}")
+        open_brackets = truncated.count("[") - truncated.count("]")
+
+        truncated = re.sub(r",\s*$", "", truncated)
+
+        if open_brackets > 0:
+            truncated += "]" * open_brackets
+        if open_braces > 0:
+            truncated += "}" * open_braces
+
+        truncated = re.sub(r",\s*(\]|\})", r"\1", truncated)
+        try:
+            json.loads(truncated)
+            return truncated
+        except Exception:
+            pass
+
+    return cleaned
 
 
 def generate_json(
     prompt: str,
     model_id: str = GRANITE_INSTRUCT,
-    max_new_tokens: int = 2048,
+    max_new_tokens: int = 2500,
     max_repair_attempts: int = 2,
 ) -> dict:
     """
@@ -121,13 +152,10 @@ def generate_json(
         except json.JSONDecodeError as exc:
             logger.warning("JSON parse failed on attempt %d: %s", attempt + 1, exc)
             if attempt < max_repair_attempts - 1:
-                # Ask model to self-correct
                 current_prompt = (
                     f"{prompt}\n\n"
-                    f"## CRITICAL CORRECTION REQUIRED\n"
-                    f"Your previous response caused a JSONDecodeError: {exc}.\n"
-                    f"Your previous output was:\n{cleaned[:300]}\n\n"
-                    f"Please output ONLY valid, well-formed JSON matching the exact schema with no trailing commas or markdown."
+                    f"## CRITICAL INSTRUCTION\n"
+                    f"Output ONLY valid JSON. Keep answers concise. Do not output prose or markdown.\n"
                 )
 
     raise ValueError(f"Failed to parse valid JSON after {max_repair_attempts} attempts.\nRaw snippet: {last_raw[:500]}")
