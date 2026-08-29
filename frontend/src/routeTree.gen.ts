@@ -38,19 +38,19 @@ const AnalysisIdRoute = AnalysisIdRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any)
 const DashboardIndexRoute = DashboardIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => DashboardRoute,
+  id: '/dashboard/',
+  path: '/dashboard/',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const DashboardManualRoute = DashboardManualRouteImport.update({
-  id: '/manual',
-  path: '/manual',
-  getParentRoute: () => DashboardRoute,
+  id: '/dashboard/manual',
+  path: '/dashboard/manual',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const DashboardOwnerRepoRoute = DashboardOwnerRepoRouteImport.update({
-  id: '/$owner/$repo',
-  path: '/$owner/$repo',
-  getParentRoute: () => DashboardRoute,
+  id: '/dashboard/$owner/$repo',
+  path: '/dashboard/$owner/$repo',
+  getParentRoute: () => rootRouteImport,
 } as any)
 
 export interface FileRoutesByFullPath {
@@ -116,6 +116,9 @@ export interface RootRouteChildren {
   AnotherPageRoute: typeof AnotherPageRoute
   LoginRoute: typeof LoginRoute
   AnalysisIdRoute: typeof AnalysisIdRoute
+  DashboardManualRoute: typeof DashboardManualRoute
+  DashboardIndexRoute: typeof DashboardIndexRoute
+  DashboardOwnerRepoRoute: typeof DashboardOwnerRepoRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -150,24 +153,24 @@ declare module '@tanstack/react-router' {
     }
     '/dashboard/': {
       id: '/dashboard/'
-      path: '/'
+      path: '/dashboard'
       fullPath: '/dashboard/'
       preLoaderRoute: typeof DashboardIndexRouteImport
-      parentRoute: typeof DashboardRoute
+      parentRoute: typeof rootRouteImport
     }
     '/dashboard/manual': {
       id: '/dashboard/manual'
-      path: '/manual'
+      path: '/dashboard/manual'
       fullPath: '/dashboard/manual'
       preLoaderRoute: typeof DashboardManualRouteImport
-      parentRoute: typeof DashboardRoute
+      parentRoute: typeof rootRouteImport
     }
     '/dashboard/$owner/$repo': {
       id: '/dashboard/$owner/$repo'
-      path: '/$owner/$repo'
+      path: '/dashboard/$owner/$repo'
       fullPath: '/dashboard/$owner/$repo'
       preLoaderRoute: typeof DashboardOwnerRepoRouteImport
-      parentRoute: typeof DashboardRoute
+      parentRoute: typeof rootRouteImport
     }
   }
 }
@@ -177,6 +180,9 @@ const rootRouteChildren: RootRouteChildren = {
   AnotherPageRoute: AnotherPageRoute,
   LoginRoute: LoginRoute,
   AnalysisIdRoute: AnalysisIdRoute,
+  DashboardManualRoute: DashboardManualRoute,
+  DashboardIndexRoute: DashboardIndexRoute,
+  DashboardOwnerRepoRoute: DashboardOwnerRepoRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

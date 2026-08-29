@@ -3,7 +3,7 @@ import * as React from 'react'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { useSuspenseQuery } from '@tanstack/react-query'
 import { convexQuery } from '@convex-dev/react-query'
-import { useMutation, useAction } from 'convex/react'
+import { useMutation } from 'convex/react'
 import { api } from '../../convex/_generated/api'
 import { NavBar } from '~/components/NavBar'
 import { StatusStepper } from '~/components/StatusStepper'
@@ -78,7 +78,7 @@ function RepoContent({ owner, repoName }: { owner: string; repoName: string }) {
   )
 
   const createAnalysis = useMutation(api.analyses.createAnalysis)
-  const runAnalysis = useAction(api.analyses.runAnalysis)
+  const updateAnalysisStatus = useMutation(api.analyses.updateAnalysisStatus)
   const [submitting, setSubmitting] = React.useState<string | null>(null)
 
   async function handleAnalyzePR(pr: {
@@ -92,6 +92,7 @@ function RepoContent({ owner, repoName }: { owner: string; repoName: string }) {
       return
     }
     setSubmitting(pr._id)
+    let analysisId: string | null = null
     try {
       const id = await createAnalysis({
         pr_title: pr.title,
@@ -100,13 +101,49 @@ function RepoContent({ owner, repoName }: { owner: string; repoName: string }) {
         pullRequestId: pr._id as any,
         source: 'github_pr',
       })
+      analysisId = id
       setSelectedId(id)
-      void runAnalysis({
-        analysisId: id,
-        diff: pr.diffContent,
-        pr_title: pr.title,
-        target_framework: 'pytest',
+
+      await updateAnalysisStatus({
+        id,
+        status: 'parsing',
       })
+
+      const backendUrl =
+        (import.meta as any).env?.VITE_BACKEND_URL || 'http://localhost:8000'
+
+      const response = await fetch(`${backendUrl}/analyze`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          diff: pr.diffContent,
+          pr_title: pr.title,
+          target_framework: 'pytest',
+        }),
+      })
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        throw new Error(`Backend error ${response.status}: ${errorText}`)
+      }
+
+      const report = await response.json()
+
+      await updateAnalysisStatus({
+        id,
+        status: 'complete',
+        report: JSON.stringify(report),
+      })
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Unknown error'
+      console.error('PR analysis failed:', err)
+      if (analysisId) {
+        await updateAnalysisStatus({
+          id: analysisId as any,
+          status: 'error',
+          error_message: msg,
+        })
+      }
     } finally {
       setSubmitting(null)
     }

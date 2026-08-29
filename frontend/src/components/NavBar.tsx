@@ -15,7 +15,8 @@ export function NavBar() {
   }
 
   const userImage = (viewer as any)?.image
-  const userName = (viewer as any)?.name ?? (viewer as any)?.githubLogin ?? 'Developer'
+  const userName =
+    (viewer as any)?.name ?? (viewer as any)?.githubLogin ?? 'Developer'
 
   return (
     <header
@@ -92,13 +93,6 @@ export function NavBar() {
         <div className="flex items-center gap-3">
           {isAuthenticated ? (
             <>
-              <Link
-                to="/dashboard/manual"
-                className="gh-btn text-xs hidden sm:inline-flex items-center gap-1.5"
-              >
-                <span>✨</span>
-                <span>New Analysis</span>
-              </Link>
               <div className="flex items-center gap-2 pl-2 border-l border-[var(--gh-border)]">
                 {userImage ? (
                   <img
@@ -142,7 +136,6 @@ export function NavBar() {
     </header>
   )
 }
-
 
 export function GithubIcon({ size = 16 }: { size?: number }) {
   return (

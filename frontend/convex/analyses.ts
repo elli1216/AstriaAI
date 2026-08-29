@@ -106,6 +106,17 @@ export const runAnalysis = action({
       status: "parsing",
     });
 
+    if (backendUrl.includes("localhost") || backendUrl.includes("127.0.0.1")) {
+      const msg =
+        "Convex Cloud cannot reach localhost directly. Set BACKEND_URL in Convex to a public URL/tunnel (e.g. ngrok) for automated webhook PR analyses.";
+      await ctx.runMutation(api.analyses.updateAnalysisStatus, {
+        id: args.analysisId,
+        status: "error",
+        error_message: msg,
+      });
+      return { success: false, error: msg };
+    }
+
     try {
       const response = await fetch(`${backendUrl}/analyze`, {
         method: "POST",

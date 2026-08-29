@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { useMutation, useAction } from 'convex/react'
+import { useMutation } from 'convex/react'
 import { api } from '../../convex/_generated/api'
 import { useDashboardStore } from '~/store'
 
@@ -16,13 +16,14 @@ export function AnalysisForm() {
   } = useDashboardStore()
 
   const createAnalysis = useMutation(api.analyses.createAnalysis)
-  const runAnalysis = useAction(api.analyses.runAnalysis)
+  const updateAnalysisStatus = useMutation(api.analyses.updateAnalysisStatus)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!diff.trim()) return
 
     setIsSubmitting(true)
+    let analysisId: any = null
     try {
       const id = await createAnalysis({
         pr_title: prTitle,
@@ -30,21 +31,55 @@ export function AnalysisForm() {
         openapi_spec: openapiSpec || undefined,
         db_schema: dbSchema || undefined,
         target_framework: framework,
+        source: 'manual',
       })
-
+      analysisId = id
       setSelectedId(id)
 
-      // Fire-and-forget — Convex action calls the FastAPI backend
-      void runAnalysis({
-        analysisId: id,
-        diff,
-        pr_title: prTitle,
-        openapi_spec: openapiSpec || undefined,
-        db_schema: dbSchema || undefined,
-        target_framework: framework,
+      // Start pipeline
+      await updateAnalysisStatus({
+        id,
+        status: 'parsing',
       })
-    } catch (err) {
-      console.error(err)
+
+      const backendUrl =
+        (import.meta as any).env?.VITE_BACKEND_URL || 'http://localhost:8000'
+
+      // Call backend directly from browser
+      const response = await fetch(`${backendUrl}/analyze`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          diff,
+          pr_title: prTitle,
+          openapi_spec: openapiSpec || undefined,
+          db_schema: dbSchema || undefined,
+          target_framework: framework,
+        }),
+      })
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        throw new Error(`Backend error ${response.status}: ${errorText}`)
+      }
+
+      const report = await response.json()
+
+      await updateAnalysisStatus({
+        id,
+        status: 'complete',
+        report: JSON.stringify(report),
+      })
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Unknown error'
+      console.error('Analysis failed:', err)
+      if (analysisId) {
+        await updateAnalysisStatus({
+          id: analysisId,
+          status: 'error',
+          error_message: msg,
+        })
+      }
     } finally {
       setIsSubmitting(false)
     }
