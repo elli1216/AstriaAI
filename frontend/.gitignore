@@ -1,0 +1,64 @@
+# === Dependencies ===
+node_modules/
+.pnpm-store/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# === TanStack Start / Vinxi / Nitro / Vite ===
+.vinxi/
+.output/
+.nitro/
+.tanstack/
+dist/
+dist-ssr/
+.vite/
+*.local
+
+# === Convex ===
+# Note: Keep `convex/_generated` committed to Git for typechecking across team environments
+.env.local
+.env.*.local
+
+# === Environment Variables & Secrets ===
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# === Deployment & Cloud Providers ===
+.vercel/
+.netlify/
+.wrangler/
+.cloudflare/
+
+# === Testing & Coverage ===
+coverage/
+.nyc_output/
+.vitest_cache/
+test-results/
+playwright-report/
+blob-report/
+
+# === IDEs & Editors ===
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+.idea/
+*.swp
+*.swo
+*~
+
+# === OS Generated ===
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
