@@ -10,10 +10,16 @@ export const listInstallations = query({
   handler: async (ctx) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) return [];
-    return await ctx.db
+    const userInstallations = await ctx.db
       .query("installations")
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .collect();
+    if (userInstallations.length > 0) {
+      return userInstallations;
+    }
+    // Fallback for single-tenant / local development / unclaimed installations
+    const all = await ctx.db.query("installations").collect();
+    return all.filter((inst) => !inst.suspended);
   },
 });
 
