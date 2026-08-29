@@ -66,14 +66,18 @@ async def post_pr_comment_endpoint(req: PrCommentRequest):
     if not inst_id:
         raise HTTPException(status_code=404, detail="No GitHub App installation found for this repository")
 
-    result = await upsert_pr_comment(
-        installation_id=inst_id,
-        owner=req.owner,
-        repo=req.repo,
-        pr_number=req.pr_number,
-        body=req.markdown_report,
-    )
-    return {"success": True, "comment": result}
+    try:
+        result = await upsert_pr_comment(
+            installation_id=inst_id,
+            owner=req.owner,
+            repo=req.repo,
+            pr_number=req.pr_number,
+            body=req.markdown_report,
+        )
+        return {"success": True, "comment": result}
+    except Exception as exc:
+        print(f"[pr-comment] Failed to post/update PR comment: {exc}")
+        raise HTTPException(status_code=403, detail=str(exc))
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────

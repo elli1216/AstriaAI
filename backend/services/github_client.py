@@ -171,6 +171,11 @@ async def upsert_pr_comment(
                 headers=headers,
                 json={"body": formatted_body},
             )
+            if patch_resp.status_code == 403:
+                raise RuntimeError(
+                    f"GitHub App 403 Forbidden on comment update: {patch_resp.text}. "
+                    "Ensure your GitHub App has 'Pull requests: Read and write' and 'Issues: Read and write' permissions."
+                )
             patch_resp.raise_for_status()
             return patch_resp.json()
         else:
@@ -180,6 +185,21 @@ async def upsert_pr_comment(
                 headers=headers,
                 json={"body": formatted_body},
             )
+            if post_resp.status_code == 403:
+                # Fallback to Pull Request Review API
+                print("[github] Issue comments returned 403, attempting PR Review fallback...")
+                review_resp = await client.post(
+                    f"https://api.github.com/repos/{owner}/{repo}/pulls/{pr_number}/reviews",
+                    headers=headers,
+                    json={"body": formatted_body, "event": "COMMENT"},
+                )
+                if review_resp.is_success:
+                    return review_resp.json()
+                raise RuntimeError(
+                    f"GitHub App 403 Forbidden: {post_resp.text}. "
+                    "Please go to GitHub App Settings -> 'Permissions & events' -> Repository permissions, "
+                    "set 'Pull requests' to 'Read and write' and 'Issues' to 'Read and write', then accept the updated permissions."
+                )
             post_resp.raise_for_status()
             return post_resp.json()
 
