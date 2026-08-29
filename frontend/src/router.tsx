@@ -2,14 +2,13 @@ import { createRouter } from '@tanstack/react-router'
 import { QueryClient } from '@tanstack/react-query'
 import { routerWithQueryClient } from '@tanstack/react-router-with-query'
 import { ConvexQueryClient } from '@convex-dev/react-query'
-import { ConvexProvider } from 'convex/react'
+import { ConvexAuthProvider } from '@convex-dev/auth/react'
 import { routeTree } from './routeTree.gen'
 
 export function getRouter() {
-  const CONVEX_URL = (import.meta as any).env.VITE_CONVEX_URL!
-  if (!CONVEX_URL) {
-    console.error('missing envar CONVEX_URL')
-  }
+  const CONVEX_URL = (import.meta as any).env.VITE_CONVEX_URL as string
+  if (!CONVEX_URL) console.error('missing envar VITE_CONVEX_URL')
+
   const convexQueryClient = new ConvexQueryClient(CONVEX_URL)
 
   const queryClient: QueryClient = new QueryClient({
@@ -27,15 +26,27 @@ export function getRouter() {
     createRouter({
       routeTree,
       defaultPreload: 'intent',
-      context: { queryClient },
+      context: {
+        queryClient,
+        // auth will be filled in by the root route loader
+        auth: undefined as any,
+      },
       scrollRestoration: true,
-      defaultPreloadStaleTime: 0, // Let React Query handle all caching
-      defaultErrorComponent: (err) => <p>{err.error.stack}</p>,
-      defaultNotFoundComponent: () => <p>not found</p>,
+      defaultPreloadStaleTime: 0,
+      defaultErrorComponent: ({ error }) => (
+        <div className="flex items-center justify-center h-screen text-red-400 p-8">
+          <pre className="text-xs">{String(error)}</pre>
+        </div>
+      ),
+      defaultNotFoundComponent: () => (
+        <div className="flex items-center justify-center h-screen text-gray-400">
+          Page not found
+        </div>
+      ),
       Wrap: ({ children }) => (
-        <ConvexProvider client={convexQueryClient.convexClient}>
+        <ConvexAuthProvider client={convexQueryClient.convexClient}>
           {children}
-        </ConvexProvider>
+        </ConvexAuthProvider>
       ),
     }),
     queryClient,

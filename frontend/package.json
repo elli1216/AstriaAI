@@ -12,7 +12,12 @@
     "lint": "npm run typecheck && eslint .  --ext ts,tsx --report-unused-disable-directives --max-warnings 0"
   },
   "dependencies": {
+    "@auth/core": "^0.41.3",
+    "@convex-dev/auth": "^0.0.95",
     "@convex-dev/react-query": "^0.1.0",
+    "@octokit/app": "^16.1.4",
+    "@octokit/rest": "^22.0.1",
+    "@octokit/webhooks": "^14.2.0",
     "@tanstack/react-query": "^5.101.4",
     "@tanstack/react-router": "^1.170.19",
     "@tanstack/react-router-with-query": "^1.130.17",

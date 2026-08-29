@@ -1,45 +1,255 @@
 @import 'tailwindcss';
 
+/* ── GitHub Design Tokens ───────────────────────────────────────────────── */
+:root {
+  --gh-canvas:        #0d1117;
+  --gh-surface:       #161b22;
+  --gh-surface-2:     #21262d;
+  --gh-border:        #30363d;
+  --gh-border-muted:  #21262d;
+  --gh-text:          #e6edf3;
+  --gh-text-muted:    #8b949e;
+  --gh-text-subtle:   #6e7681;
+  --gh-accent:        #1f6feb;
+  --gh-accent-muted:  rgba(31, 111, 235, 0.15);
+  --gh-green:         #238636;
+  --gh-green-muted:   rgba(35, 134, 54, 0.15);
+  --gh-green-text:    #3fb950;
+  --gh-red:           #da3633;
+  --gh-red-muted:     rgba(218, 54, 51, 0.15);
+  --gh-red-text:      #f85149;
+  --gh-orange:        #9e6a03;
+  --gh-orange-muted:  rgba(158, 106, 3, 0.15);
+  --gh-orange-text:   #d29922;
+  --gh-purple:        #6e40c9;
+  --gh-purple-muted:  rgba(110, 64, 201, 0.15);
+  --gh-purple-text:   #a371f7;
+  --gh-done:          #8957e5;
+  --gh-done-muted:    rgba(137, 87, 229, 0.15);
+}
+
 @layer base {
-  html,
-  body {
-    @apply text-gray-900 bg-gray-950 text-gray-100;
-    font-family: 'Inter', 'SF Pro Display', system-ui, sans-serif;
+  html, body {
+    background-color: var(--gh-canvas);
+    color: var(--gh-text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans",
+      Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
   }
 
-  .using-mouse * {
-    outline: none !important;
-  }
+  .using-mouse * { outline: none !important; }
+  * { box-sizing: border-box; }
 
-  * {
-    box-sizing: border-box;
+  /* GitHub-style focus ring */
+  :focus-visible {
+    outline: 2px solid var(--gh-accent);
+    outline-offset: 2px;
   }
 }
 
 @layer utilities {
+  /* ── GitHub surface cards ─────────────────────────────────────── */
+  .gh-card {
+    background-color: var(--gh-surface);
+    border: 1px solid var(--gh-border);
+    border-radius: 6px;
+  }
+
+  .gh-card-inner {
+    background-color: var(--gh-surface-2);
+    border: 1px solid var(--gh-border);
+    border-radius: 6px;
+  }
+
+  /* ── Primary (green) button — GitHub's "btn-primary" ─────────── */
+  .gh-btn-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 16px;
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 20px;
+    color: #fff;
+    background-color: var(--gh-green);
+    border: 1px solid rgba(240, 246, 252, 0.1);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background-color 80ms;
+    white-space: nowrap;
+  }
+  .gh-btn-primary:hover  { background-color: #2ea043; }
+  .gh-btn-primary:active { background-color: #238636; }
+  .gh-btn-primary:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  /* ── Default button — GitHub's "btn" ─────────────────────────── */
+  .gh-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 16px;
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 20px;
+    color: var(--gh-text);
+    background-color: var(--gh-surface-2);
+    border: 1px solid var(--gh-border);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background-color 80ms, border-color 80ms;
+    white-space: nowrap;
+  }
+  .gh-btn:hover  { background-color: #30363d; border-color: #8b949e; }
+  .gh-btn:active { background-color: var(--gh-surface); }
+  .gh-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+  /* ── Danger button ────────────────────────────────────────────── */
+  .gh-btn-danger {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 16px;
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 20px;
+    color: var(--gh-red-text);
+    background-color: var(--gh-surface-2);
+    border: 1px solid var(--gh-border);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background-color 80ms;
+  }
+  .gh-btn-danger:hover { background-color: var(--gh-red); color: #fff; }
+
+  /* ── Label / badge ─────────────────────────────────────────────── */
+  .gh-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 0 7px;
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 18px;
+    border-radius: 2em;
+    border: 1px solid transparent;
+  }
+
+  /* ── State labels (Open / Closed / Merged / Draft) ─────────────── */
+  .gh-state-open   { background: var(--gh-green-muted);  color: var(--gh-green-text);  border-color: rgba(63,185,80,.4); }
+  .gh-state-closed { background: var(--gh-red-muted);    color: var(--gh-red-text);    border-color: rgba(248,81,73,.4); }
+  .gh-state-merged { background: var(--gh-done-muted);   color: var(--gh-purple-text); border-color: rgba(163,113,247,.4); }
+  .gh-state-draft  { background: var(--gh-surface-2);    color: var(--gh-text-muted);  border-color: var(--gh-border); }
+
+  /* ── Risk level labels ─────────────────────────────────────────── */
+  .gh-risk-low      { background: var(--gh-green-muted);  color: var(--gh-green-text);  border-color: rgba(63,185,80,.4); }
+  .gh-risk-medium   { background: var(--gh-orange-muted); color: var(--gh-orange-text); border-color: rgba(210,153,34,.4); }
+  .gh-risk-high     { background: rgba(219,109,40,.15);   color: #f0883e;               border-color: rgba(240,136,62,.4); }
+  .gh-risk-critical { background: var(--gh-red-muted);    color: var(--gh-red-text);    border-color: rgba(248,81,73,.4); }
+
+  /* ── Input ─────────────────────────────────────────────────────── */
+  .gh-input {
+    width: 100%;
+    padding: 5px 12px;
+    font-size: 14px;
+    line-height: 20px;
+    color: var(--gh-text);
+    background-color: var(--gh-canvas);
+    border: 1px solid var(--gh-border);
+    border-radius: 6px;
+    transition: border-color 80ms, box-shadow 80ms;
+  }
+  .gh-input:focus {
+    border-color: var(--gh-accent);
+    box-shadow: 0 0 0 3px var(--gh-accent-muted);
+    outline: none;
+  }
+  .gh-input::placeholder { color: var(--gh-text-subtle); }
+
+  /* ── Textarea inherits input styles ───────────────────────────── */
+  .gh-textarea {
+    width: 100%;
+    padding: 8px 12px;
+    font-size: 13px;
+    line-height: 1.5;
+    font-family: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, monospace;
+    color: var(--gh-text);
+    background-color: var(--gh-canvas);
+    border: 1px solid var(--gh-border);
+    border-radius: 6px;
+    resize: vertical;
+    transition: border-color 80ms, box-shadow 80ms;
+  }
+  .gh-textarea:focus {
+    border-color: var(--gh-accent);
+    box-shadow: 0 0 0 3px var(--gh-accent-muted);
+    outline: none;
+  }
+
+  /* ── Code / monospace ─────────────────────────────────────────── */
+  .gh-code {
+    font-family: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, monospace;
+    font-size: 12px;
+    color: var(--gh-text);
+    background-color: var(--gh-surface-2);
+    border: 1px solid var(--gh-border);
+    border-radius: 6px;
+    padding: 2px 6px;
+  }
+
+  /* ── Diff viewer ───────────────────────────────────────────────── */
+  .gh-diff-add { background-color: rgba(46,160,67,.15); color: var(--gh-green-text); }
+  .gh-diff-del { background-color: rgba(218,54,51,.15); color: var(--gh-red-text); }
+
+  /* ── Skeleton loader ───────────────────────────────────────────── */
+  .gh-skeleton {
+    background: linear-gradient(
+      90deg,
+      var(--gh-surface) 25%,
+      var(--gh-surface-2) 50%,
+      var(--gh-surface) 75%
+    );
+    background-size: 200% 100%;
+    animation: gh-shimmer 1.4s ease infinite;
+    border-radius: 6px;
+  }
+  @keyframes gh-shimmer {
+    0%   { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+
+  /* ── Divider ───────────────────────────────────────────────────── */
+  .gh-divider { border-top: 1px solid var(--gh-border); }
+
+  /* ── Hover row ─────────────────────────────────────────────────── */
+  .gh-row {
+    border-bottom: 1px solid var(--gh-border);
+    transition: background-color 80ms;
+  }
+  .gh-row:hover { background-color: var(--gh-surface-2); }
+  .gh-row:last-child { border-bottom: none; }
+
+  /* ── Flash / banner ────────────────────────────────────────────── */
+  .gh-flash-warn  { background: var(--gh-orange-muted); border: 1px solid var(--gh-orange-text); border-radius: 6px; padding: 12px 16px; }
+  .gh-flash-error { background: var(--gh-red-muted);    border: 1px solid var(--gh-red-text);    border-radius: 6px; padding: 12px 16px; }
+  .gh-flash-info  { background: var(--gh-accent-muted); border: 1px solid var(--gh-accent);      border-radius: 6px; padding: 12px 16px; }
+
+  /* ── Legacy glass (kept for AnalysisReportView) ────────────────── */
   .glass {
-    background: rgba(255, 255, 255, 0.05);
-    backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background-color: var(--gh-surface);
+    border: 1px solid var(--gh-border);
+    border-radius: 6px;
   }
 
-  .glow-red {
-    box-shadow: 0 0 20px rgba(239, 68, 68, 0.3);
-  }
+  /* ── Risk glow shadows (kept for RiskBadge) ────────────────────── */
+  .glow-red    { box-shadow: 0 0 0 3px rgba(218,54,51,.25); }
+  .glow-orange { box-shadow: 0 0 0 3px rgba(210,153,34,.25); }
+  .glow-yellow { box-shadow: 0 0 0 3px rgba(210,153,34,.15); }
+  .glow-green  { box-shadow: 0 0 0 3px rgba(63,185,80,.25); }
 
-  .glow-orange {
-    box-shadow: 0 0 20px rgba(249, 115, 22, 0.3);
-  }
-
-  .glow-yellow {
-    box-shadow: 0 0 20px rgba(234, 179, 8, 0.3);
-  }
-
-  .glow-green {
-    box-shadow: 0 0 20px rgba(34, 197, 94, 0.3);
-  }
-
-  .animate-pulse-slow {
-    animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-  }
+  .animate-pulse-slow { animation: pulse 3s cubic-bezier(0.4,0,.6,1) infinite; }
 }

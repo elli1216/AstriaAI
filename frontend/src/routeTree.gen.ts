@@ -11,6 +11,11 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AnotherPageRouteImport } from './routes/anotherPage'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as AnalysisIdRouteImport } from './routes/analysis.$id'
+import { Route as DashboardIndexRouteImport } from './routes/dashboard.index'
+import { Route as DashboardManualRouteImport } from './routes/dashboard.manual'
+import { Route as DashboardOwnerRepoRouteImport } from './routes/dashboard.$owner.$repo'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -22,31 +27,95 @@ const AnotherPageRoute = AnotherPageRouteImport.update({
   path: '/anotherPage',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AnalysisIdRoute = AnalysisIdRouteImport.update({
+  id: '/analysis/$id',
+  path: '/analysis/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DashboardIndexRoute = DashboardIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardManualRoute = DashboardManualRouteImport.update({
+  id: '/manual',
+  path: '/manual',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardOwnerRepoRoute = DashboardOwnerRepoRouteImport.update({
+  id: '/$owner/$repo',
+  path: '/$owner/$repo',
+  getParentRoute: () => DashboardRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/anotherPage': typeof AnotherPageRoute
+  '/login': typeof LoginRoute
+  '/analysis/$id': typeof AnalysisIdRoute
+  '/dashboard/manual': typeof DashboardManualRoute
+  '/dashboard/': typeof DashboardIndexRoute
+  '/dashboard/$owner/$repo': typeof DashboardOwnerRepoRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/anotherPage': typeof AnotherPageRoute
+  '/login': typeof LoginRoute
+  '/analysis/$id': typeof AnalysisIdRoute
+  '/dashboard/manual': typeof DashboardManualRoute
+  '/dashboard': typeof DashboardIndexRoute
+  '/dashboard/$owner/$repo': typeof DashboardOwnerRepoRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/anotherPage': typeof AnotherPageRoute
+  '/login': typeof LoginRoute
+  '/analysis/$id': typeof AnalysisIdRoute
+  '/dashboard/manual': typeof DashboardManualRoute
+  '/dashboard/': typeof DashboardIndexRoute
+  '/dashboard/$owner/$repo': typeof DashboardOwnerRepoRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/anotherPage'
+  fullPaths:
+    | '/'
+    | '/anotherPage'
+    | '/login'
+    | '/analysis/$id'
+    | '/dashboard/manual'
+    | '/dashboard/'
+    | '/dashboard/$owner/$repo'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/anotherPage'
-  id: '__root__' | '/' | '/anotherPage'
+  to:
+    | '/'
+    | '/anotherPage'
+    | '/login'
+    | '/analysis/$id'
+    | '/dashboard/manual'
+    | '/dashboard'
+    | '/dashboard/$owner/$repo'
+  id:
+    | '__root__'
+    | '/'
+    | '/anotherPage'
+    | '/login'
+    | '/analysis/$id'
+    | '/dashboard/manual'
+    | '/dashboard/'
+    | '/dashboard/$owner/$repo'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AnotherPageRoute: typeof AnotherPageRoute
+  LoginRoute: typeof LoginRoute
+  AnalysisIdRoute: typeof AnalysisIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -65,12 +134,49 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AnotherPageRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/analysis/$id': {
+      id: '/analysis/$id'
+      path: '/analysis/$id'
+      fullPath: '/analysis/$id'
+      preLoaderRoute: typeof AnalysisIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dashboard/': {
+      id: '/dashboard/'
+      path: '/'
+      fullPath: '/dashboard/'
+      preLoaderRoute: typeof DashboardIndexRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/manual': {
+      id: '/dashboard/manual'
+      path: '/manual'
+      fullPath: '/dashboard/manual'
+      preLoaderRoute: typeof DashboardManualRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/$owner/$repo': {
+      id: '/dashboard/$owner/$repo'
+      path: '/$owner/$repo'
+      fullPath: '/dashboard/$owner/$repo'
+      preLoaderRoute: typeof DashboardOwnerRepoRouteImport
+      parentRoute: typeof DashboardRoute
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AnotherPageRoute: AnotherPageRoute,
+  LoginRoute: LoginRoute,
+  AnalysisIdRoute: AnalysisIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

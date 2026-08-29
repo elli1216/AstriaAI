@@ -1,5 +1,5 @@
 """
-ImpactTest AI — FastAPI Backend
+Astria AI — FastAPI Backend (with GitHub App webhook receiver)
 
 Orchestrates the multi-agent pipeline:
   1. Parse the PR diff → build context payload
@@ -24,6 +24,7 @@ from agents.remediation import run_remediation_agent
 from services.sandbox_executor import execute_synthesized_tests
 from services.report_formatter import format_markdown_report
 from services.config import FRONTEND_URL
+from routers.github_webhook import router as github_router
 
 
 @asynccontextmanager
@@ -32,7 +33,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="ImpactTest AI",
+    title="Astria AI",
     description="Autonomous PR blast-radius analyzer and regression test generator powered by IBM Granite on watsonx.ai",
     version="1.0.0",
     lifespan=lifespan,
@@ -47,9 +48,12 @@ app.add_middleware(
 )
 
 
+app.include_router(github_router)
+
+
 @app.get("/health")
 def health():
-    return {"status": "ok", "service": "ImpactTest AI"}
+    return {"status": "ok", "service": "Astria AI"}
 
 
 @app.post("/analyze", response_model=AnalysisReport)

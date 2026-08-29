@@ -8,6 +8,6 @@ WATSONX_API_KEY = os.getenv("WATSONX_API_KEY", "")
 WATSONX_PROJECT_ID = os.getenv("WATSONX_PROJECT_ID", "")
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
 
-GRANITE_INSTRUCT = "ibm/granite-3-8b-instruct"
-GRANITE_CODE = "ibm/granite-20b-code-instruct"
-GRANITE_GUARDIAN = "ibm/granite-guardian-3-8b"
+GRANITE_INSTRUCT = os.getenv("GRANITE_INSTRUCT_MODEL", "ibm/ibm-granite/granite-4.2-30b")
+GRANITE_CODE = os.getenv("GRANITE_CODE_MODEL", "ibm/ibm-granite/granite-4.2-30b")
+GRANITE_GUARDIAN = os.getenv("GRANITE_GUARDIAN_MODEL", "ibm/ibm-granite/granite-4.2-30b")

@@ -1,7 +1,7 @@
 """
 Demo Target Repository — Lightweight FastAPI API
 
-This is the "subject" codebase that ImpactTest AI analyzes.
+This is the "subject" codebase that Astria AI analyzes.
 It intentionally contains a breaking change:
   - billing_address was Optional[str] but is now required str
   - The /billing/charge and /notifications/send routes still treat it as optional,

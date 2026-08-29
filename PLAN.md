@@ -137,7 +137,7 @@
 * Record a concise 3-minute video walkthrough:
 
 1. Show the invisible breaking change in the PR diff.
-2. Show ImpactTest AI running multi-agent analysis via Watsonx Granite.
+2. Show Astria AI running multi-agent analysis via Watsonx Granite.
 3. Show the generated regression test catching the failure in the UI.
 4. Show the 1-click patch applied.
 

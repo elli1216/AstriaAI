@@ -18,7 +18,7 @@ def execute_synthesized_tests(test: SynthesizedTest) -> TestExecutionResult:
     Write the synthesized test to a temp file and execute it.
     Returns a structured TestExecutionResult.
     """
-    with tempfile.TemporaryDirectory(prefix="impacttest_") as tmpdir:
+    with tempfile.TemporaryDirectory(prefix="Astria_") as tmpdir:
         test_path = Path(tmpdir) / test.filename
         test_path.write_text(test.content, encoding="utf-8")
 
