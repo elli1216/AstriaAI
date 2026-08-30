@@ -1,7 +1,8 @@
 # Astria AI ⚡
 
 > **Autonomous PR Blast-Radius Analyzer & Regression Test Generator**  
-> Powered by **IBM Granite on watsonx.ai** · Built with **IBM Bob 2.0** · Real-time sync via **Convex**
+> Powered by **IBM Granite on watsonx.ai** · Built with **[IBM Bob 2.0](./IBM_BOB.md)** · Real-time sync via **Convex**  
+> 🎥 **[Watch Demo Video](https://drive.google.com/file/d/1Vcv9E7iUCXstsDRV_9bbloSt-6HMcGl7/view?usp=sharing)**
 
 ---
 
@@ -262,9 +263,13 @@ Copy the Client ID and Secret → set via `npx convex env set` (see step 2 above
 
 ---
 
-## Demo Scenario
+## Demo Video & Scenario
 
-The built-in demo reproduces the **invisible breaking change** from the architecture plan:
+### 🎥 Video Walkthrough
+
+Watch the full end-to-end demo walkthrough: **[Astria AI Demo Video](https://drive.google.com/file/d/1Vcv9E7iUCXstsDRV_9bbloSt-6HMcGl7/view?usp=sharing)**
+
+### Scenario Overview
 
 1. Developer changes `billing_address: Optional[str] = None` → `billing_address: str` on the `User` model
 2. Existing unit tests pass (only user service was tested)
@@ -334,16 +339,27 @@ FastAPI Swagger UI with interactive playground.
 
 ---
 
-## IBM Bob 2.0 Usage
+## 🤖 IBM Bob 2.0 Usage
 
-This project was built end-to-end using **IBM Bob 2.0** as the development partner:
+Astria AI was designed, developed, and deployed end-to-end using **IBM Bob 2.0** as our primary AI engineering partner.
 
-| Bob Feature | How It Was Used |
-| --- | --- |
-| **Document Understanding** | `PLAN.md` fed as project context; OpenAPI spec + Prisma schema ingested to generate Pydantic models and FastAPI endpoints |
-| **Agent Mode / Parallel Subagents** | Three subagents built concurrently: AST parser, watsonx.ai client wrapper, and React dashboard |
-| **Scaffolding** | Full monorepo structure (FastAPI + TanStack Start + Convex) scaffolded via Bob in a single session |
-| **Code Review** | Bob reviewed all agent prompts for hallucination risk and output schema compliance |
+👉 **Read the full breakdown in [IBM_BOB.md](./IBM_BOB.md)**
+
+### Tri-Mode Engineering Workflow
+
+- **Plan Mode:** Architected the 7-step autonomous multi-agent pipeline, defined Pydantic and Convex schemas, and decomposed the roadmap into testable milestones.
+
+- **Agent Mode:** Generated and iterated on the FastAPI multi-agent backend, `ibm-watsonx-ai` client with self-healing JSON parsing, GitHub App webhook integration, in-place PR comment updating (`PATCH`), and the React 19 + TanStack Start Primer dashboard.
+- **Ask Mode:** Interrogated technical decisions, evaluated IBM Granite model selection (`granite-4-h-small` vs `granite-3-8b-instruct`), and resolved GitHub REST API permissions.
+
+### Bob Skills Catalog
+
+- **`fastapi-pro`** — Production async FastAPI architecture and middleware.
+
+- **`ai-engineer`** — IBM Granite prompt engineering and structured JSON extraction.
+- **`python-testing-patterns`** — Ephemeral test sandbox and execution runner.
+- **`react-modernization`** & **`react-state-management`** — React 19 UI, Zustand 5 stores, and Convex subscriptions.
+- **`code-reviewer`** — Static code analysis and GitHub Primer design tokens.
 
 ---
 
