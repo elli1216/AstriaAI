@@ -59,6 +59,11 @@ export interface ExecutionMetrics {
   model_name?: string
 }
 
+export interface ReportExportOptions {
+  includeTelemetry?: boolean
+  format?: 'markdown' | 'json'
+}
+
 export interface AnalysisReport {
   pr_title: string
   blast_radius: BlastRadiusResult

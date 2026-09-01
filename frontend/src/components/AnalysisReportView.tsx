@@ -23,6 +23,19 @@ export function AnalysisReportView({ report }: AnalysisReportViewProps) {
   const payloads = fuzz_payloads?.payloads ?? []
   const models = blast_radius?.impacted_models ?? []
 
+  function handleDownloadMarkdown() {
+    if (!report.markdown_report) return
+    const blob = new Blob([report.markdown_report], { type: 'text/markdown;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `${(report.pr_title || 'astria-analysis').toLowerCase().replace(/[^a-z0-9]+/g, '-')}-report.md`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+  }
+
   return (
     <div className="flex flex-col gap-6">
       {/* ── Blast Radius Overview ───────────────────────────────────────── */}
@@ -36,7 +49,23 @@ export function AnalysisReportView({ report }: AnalysisReportViewProps) {
               Executive Impact Summary
             </h2>
           </div>
-          <RiskBadge level={blast_radius.risk_level} score={blast_radius.risk_score} />
+          <div className="flex items-center gap-2">
+            {report.markdown_report && (
+              <button
+                onClick={handleDownloadMarkdown}
+                type="button"
+                className="gh-btn text-xs py-1 px-2.5 flex items-center gap-1.5"
+                title="Download full Markdown report"
+              >
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
+                  <path d="M2.75 14A1.75 1.75 0 0 1 1 12.25v-2.5a.75.75 0 0 1 1.5 0v2.5c0 .138.112.25.25.25h10.5a.25.25 0 0 0 .25-.25v-2.5a.75.75 0 0 1 1.5 0v2.5A1.75 1.75 0 0 1 13.25 14Z" />
+                  <path d="M7.25 7.689V2a.75.75 0 0 1 1.5 0v5.689l1.97-1.969a.749.749 0 1 1 1.06 1.06l-3.25 3.25a.749.749 0 0 1-1.06 0L4.22 6.78a.749.749 0 1 1 1.06-1.06l1.97 1.969Z" />
+                </svg>
+                <span>Export Report</span>
+              </button>
+            )}
+            <RiskBadge level={blast_radius.risk_level} score={blast_radius.risk_score} />
+          </div>
         </div>
 
         <p className="text-sm leading-relaxed" style={{ color: 'var(--gh-text-muted)' }}>
